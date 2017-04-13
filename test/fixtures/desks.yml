@@ -1,0 +1,21 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  domain: MyString
+  user: MyString
+  token: MyString
+  last_timestamp: 2017-04-13 10:53:19
+  last_timestamp_event: 2017-04-13 10:53:19
+  wait_till: 2017-04-13 10:53:19
+  wait_till_event: 2017-04-13 10:53:19
+  active: false
+
+two:
+  domain: MyString
+  user: MyString
+  token: MyString
+  last_timestamp: 2017-04-13 10:53:19
+  last_timestamp_event: 2017-04-13 10:53:19
+  wait_till: 2017-04-13 10:53:19
+  wait_till_event: 2017-04-13 10:53:19
+  active: false
