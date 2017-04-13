@@ -1,7 +1,7 @@
 ActiveAdmin.register AdminUser do
   permit_params :email, :password, :password_confirmation
-  menu priority 3
-
+  #menu priority: 3
+  menu false
   index do
     selectable_column
     id_column

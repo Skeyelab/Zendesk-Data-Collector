@@ -1,6 +1,8 @@
 ActiveAdmin.register Desk do
-  permit_params :domain, :user, :token, :active ## Add this line
+  config.filters = false
 
+  permit_params :domain, :user, :token, :active ## Add this line
+  menu priority: 1
   show do
     #panel "Desk"
     attributes_table do
@@ -9,6 +11,14 @@ ActiveAdmin.register Desk do
       row :token
       row :active
     end
+  end
+
+  index do
+    #id_column
+    column :domain
+    column :user
+    column :active
+    actions
   end
 
   form do |f|
