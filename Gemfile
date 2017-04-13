@@ -40,6 +40,11 @@ gem "attr_encrypted", "~> 3.0.0"
 
 gem 'github-ds'
 
+gem 'activeadmin', github: 'activeadmin'
+gem 'inherited_resources', '~> 1.7'
+# Plus integrations with:
+gem 'devise'
+
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug', platform: :mri
