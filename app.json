@@ -1,8 +1,8 @@
 {
   "name": "Zendesk Data Collector",
   "description": "This app does one little thing, and does it well.",
-  "env": {  
-        "DEFAULT_ADMIN_USER": {
+  "env": {
+    "DEFAULT_ADMIN_USER": {
       "description": "The email address of the initial admin user.",
       "value": "user@domain.com"
     },
@@ -16,7 +16,7 @@
       "url": "heroku/ruby"
     }
   ],
-    "scripts": {
+  "scripts": {
     "postdeploy": "bundle exec rake db:migrate && bundle exec rake db:seed"
   }
 }

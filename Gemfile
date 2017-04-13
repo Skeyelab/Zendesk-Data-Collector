@@ -7,6 +7,7 @@ end
 
 ruby '2.3.1'
 
+
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '~> 5.0.2'
 gem 'dotenv-rails', :require => 'dotenv/rails-now', :groups => [:development, :test]
@@ -40,6 +41,7 @@ gem 'jbuilder', '~> 2.5'
 gem "attr_encrypted", "~> 3.0.0"
 
 gem 'github-ds'
+gem 'zendesk_api'
 
 gem 'activeadmin', github: 'activeadmin'
 gem 'inherited_resources', '~> 1.7'
