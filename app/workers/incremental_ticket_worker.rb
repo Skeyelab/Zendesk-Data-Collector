@@ -1,5 +1,6 @@
 class IncrementalTicketWorker
   include Sidekiq::Worker
+  sidekiq_options queue: 'data_collector_default'
 
   def perform(desk_id)
     # Do something
