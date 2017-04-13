@@ -1,4 +1,6 @@
 ActiveAdmin.register Desk do
+  permit_params :domain, :user, :token, :active ## Add this line
+
   show do
     #panel "Desk"
     attributes_table do
