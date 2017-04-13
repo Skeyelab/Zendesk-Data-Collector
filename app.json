@@ -4,11 +4,11 @@
   "env": {  
         "DEFAULT_ADMIN_USER": {
       "description": "The email address of the initial admin user.",
-      "value": ""
+      "value": "user@domain.com"
     },
     "DEFAULT_ADMIN_PW": {
       "description": "The password of the initial admin user.",
-      "value": ""
+      "value": "123456"
     }
   },
   "buildpacks": [
