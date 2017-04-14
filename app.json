@@ -22,5 +22,15 @@
   "addons": [
     "heroku-postgresql:hobby-basic",
     "heroku-redis:hobby-dev"
-  ]
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "hobby"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "hobby"
+    }
+  }
 }
