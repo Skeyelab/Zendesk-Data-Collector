@@ -101,11 +101,28 @@ class IncrementalTicketWorker
         q2 = q2.chomp(", ")
         q2 = q2 + ")"
         query = q1+q2
+
+        id = querypairs.delete("id")
+
+        q3 = "("
+        q4 = ") = ("
+        querypairs.each do |key, value|
+          q3 = q3 + key.to_s + ", "
+        q4 = q4 + "'" + value.to_s + "', "        end
+        q3 = q3.chomp(", ")
+        q4 = q4.chomp(", ")
+        q4 = q4 + ")"
+
+
+        conflict_query = " on conflict (id) do update set #{q3 + q4} where #{desk["domain"].gsub('.','_')}.id = '#{id}'"
+
+        query = query + conflict_query
+
         begin
           GitHub::SQL.results query.gsub("''", "NULL")
 
         rescue Exception => e
-          next
+
         end
 
       end
