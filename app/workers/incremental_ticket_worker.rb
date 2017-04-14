@@ -142,7 +142,8 @@ class IncrementalTicketWorker
 
     end while ((oldstarttime < starttime) && (oldstarttime < Time.now.to_i))
     puts "ending"
-
+    desk.queued = false
+    desk.save
   end
 
 end

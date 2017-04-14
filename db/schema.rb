@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170413164618) do
+ActiveRecord::Schema.define(version: 20170414195919) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -58,7 +58,56 @@ ActiveRecord::Schema.define(version: 20170413164618) do
     t.boolean  "active"
     t.datetime "created_at",           null: false
     t.datetime "updated_at",           null: false
+    t.boolean  "queued"
     t.index ["domain"], name: "index_desks_on_domain", unique: true, using: :btree
+  end
+
+  create_table "geets_zendesk_com", id: :integer, force: :cascade do |t|
+    t.integer  "generated_timestamp"
+    t.string   "req_name",                                               limit: 64
+    t.bigint   "req_id"
+    t.string   "req_external_id",                                        limit: 64
+    t.string   "req_email",                                              limit: 255
+    t.string   "domain",                                                 limit: 255
+    t.string   "submitter_name",                                         limit: 64
+    t.string   "assignee_name",                                          limit: 64
+    t.string   "group_name",                                             limit: 64
+    t.string   "subject",                                                limit: 255
+    t.string   "current_tags",                                           limit: 1024
+    t.string   "status",                                                 limit: 255
+    t.string   "priority",                                               limit: 255
+    t.string   "via",                                                    limit: 255
+    t.string   "ticket_type",                                            limit: 255
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.datetime "assigned_at"
+    t.string   "organization_name",                                      limit: 64
+    t.string   "due_date",                                               limit: 255
+    t.datetime "initially_assigned_at"
+    t.datetime "solved_at"
+    t.string   "resolution_time",                                        limit: 255
+    t.string   "satisfaction_score",                                     limit: 255
+    t.string   "group_stations",                                         limit: 255
+    t.string   "assignee_stations",                                      limit: 255
+    t.string   "reopens",                                                limit: 255
+    t.string   "replies",                                                limit: 255
+    t.integer  "first_reply_time_in_minutes"
+    t.integer  "first_reply_time_in_minutes_within_business_hours"
+    t.integer  "first_resolution_time_in_minutes"
+    t.integer  "first_resolution_time_in_minutes_within_business_hours"
+    t.integer  "full_resolution_time_in_minutes"
+    t.integer  "full_resolution_time_in_minutes_within_business_hours"
+    t.integer  "agent_wait_time_in_minutes"
+    t.integer  "agent_wait_time_in_minutes_within_business_hours"
+    t.integer  "requester_wait_time_in_minutes"
+    t.integer  "requester_wait_time_in_minutes_within_business_hours"
+    t.integer  "on_hold_time_in_minutes"
+    t.integer  "on_hold_time_in_minutes_within_business_hours"
+    t.bigint   "assignee_id"
+    t.bigint   "assignee_external_id"
+    t.bigint   "group_id"
+    t.string   "field_76108047",                                         limit: 255
+    t.string   "url",                                                    limit: 255
   end
 
 end
