@@ -32,8 +32,6 @@ gem 'turbolinks', '~> 5'
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
 gem 'jbuilder', '~> 2.5'
 
-gem 'bugsnag'
-
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
 # Use Redis adapter to run Action Cable in production
