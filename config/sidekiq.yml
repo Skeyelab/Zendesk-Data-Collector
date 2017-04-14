@@ -1,4 +1,8 @@
 ---
-:concurrency: 1
+:concurrency: 15
 :queues:
   - data_collector_default
+:schedule:
+  hello_world:
+    every: 1s   # Runs once per minute
+    class: QueueIncrementalTicketsWorker

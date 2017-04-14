@@ -1,6 +1,8 @@
 class Desk < ApplicationRecord
   attr_encrypted :token, key: ENV["ENC_KEY"]
 
+  scope :readyToGo, -> { where("last_timestamp <= #{Time.now.to_i-300} and wait_till < #{Time.now.to_i} and active = true and queued = false") }
+
   after_initialize :defaults, unless: :persisted?
   after_create do
     createTableIfNeeded(domain)
