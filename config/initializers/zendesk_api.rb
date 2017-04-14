@@ -8,7 +8,9 @@ def connectToZendesk(desk)
 
   client.insert_callback do |env|
     if env[:status] == 429
-      DB.query("UPDATE `desks` SET `wait_till` = '#{(env[:response_headers][:retry_after] || 10).to_i + Time.now.to_i}' WHERE `domain` = '#{desk["domain"]}';")
+      puts "429 hit"
+      IncrementalTicketWorker.perform_in(env[:response_headers][:retry_after], desk.id)
+      GitHub::SQL.results "UPDATE desks SET wait_till = '#{(env[:response_headers][:retry_after] || 10).to_i + Time.now.to_i}' WHERE domain = '#{desk["domain"]}';"
     end
   end
 
