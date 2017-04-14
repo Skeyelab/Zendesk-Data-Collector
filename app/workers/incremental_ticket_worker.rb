@@ -138,6 +138,11 @@ class IncrementalTicketWorker
           GitHub::SQL.results "UPDATE desks SET last_timestamp = '#{starttime}' WHERE domain = '#{desk["domain"]}';"
         end
       end
+    rescue Exception => e
+
     end while ((oldstarttime < starttime) && (oldstarttime < Time.now.to_i))
+    puts "ending"
+
   end
+
 end
