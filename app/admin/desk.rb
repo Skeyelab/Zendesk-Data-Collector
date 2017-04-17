@@ -18,6 +18,10 @@ ActiveAdmin.register Desk do
     column :domain
     column :user
     column :active
+    column("Tickets in DB") do |d|
+      sql = "select count(id) from #{d.domain.gsub('.','_')}"
+      ActiveRecord::Base.connection.execute(sql)[0]["count"]
+    end
     actions
   end
 
@@ -36,7 +40,7 @@ end
 
 
 
-
+#[1] pry(main)> sql = "select count(id) from geets_zendesk_com"
 
 
 # See permitted parameters documentation:
