@@ -56,7 +56,7 @@ class IncrementalTicketWorker
               pair = {:field => col, :type => "int"}
               querypairs << pair
             elsif (col.include? "_at") || (col.include? "timestamp")
-              pair = {:field => col, :type => "TIMESTAMP WITH TIME ZONE"}
+              pair = {:field => col, :type => "TIMESTAMP WITHOUT TIME ZONE"}
               querypairs << pair
             elsif col.include? "current_tags"
               pair = {:field => col, :type => "varchar(1024)"}
