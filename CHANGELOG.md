@@ -1,7 +1,6 @@
 # Change Log
 
-## [Unreleased](https://github.com/Skeyelab/Zendesk-Data-Collector/tree/HEAD)
-
+## [v1.0](https://github.com/Skeyelab/Zendesk-Data-Collector/tree/v1.0) (2018-04-27)
 **Merged pull requests:**
 
 - Clockwork [\#5](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/5) ([Skeyelab](https://github.com/Skeyelab))
