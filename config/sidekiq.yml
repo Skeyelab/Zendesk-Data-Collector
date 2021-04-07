@@ -4,5 +4,5 @@
   - data_collector_default
 :schedule:
   hello_world:
-    every: 1s   # Runs once per minute
+    every: 1s   # Runs every second
     class: QueueIncrementalTicketsWorker
