@@ -26,11 +26,11 @@
   "formation": {
     "web": {
       "quantity": 1,
-      "size": "hobby"
+      "size": "eco"
     },
     "worker": {
       "quantity": 1,
-      "size": "hobby"
+      "size": "eco"
     }
   }
 }
