@@ -1,0 +1,14 @@
+production:
+  concurrency: 15
+  queues: "*"
+  polling_interval: 1
+
+development:
+  concurrency: 5
+  queues: "*"
+  polling_interval: 1
+
+test:
+  concurrency: 2
+  queues: "*"
+  polling_interval: 1
