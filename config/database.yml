@@ -74,7 +74,7 @@ test:
   %>
   url: <%= test_uri %>
   <% else %>
-  database: zd_desk_data_collector
+  database: zd_desk_data_collector_test
   <% end %>
 
 # As with config/secrets.yml, you never want to store sensitive information,

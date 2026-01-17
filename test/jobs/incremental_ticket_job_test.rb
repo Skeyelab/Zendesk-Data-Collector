@@ -54,7 +54,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
 
   test "should update existing ticket in MongoDB" do
     # Create existing ticket
-    existing_ticket = ZendeskTicket.create!(
+    ZendeskTicket.create!(
       zendesk_id: 12345,
       domain: 'test.zendesk.com',
       subject: 'Old Subject',

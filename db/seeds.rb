@@ -11,5 +11,5 @@ if ENV['DEFAULT_ADMIN_USER'] && ENV['DEFAULT_ADMIN_PW']
     user.password_confirmation = ENV['DEFAULT_ADMIN_PW']
   end
 else
-  puts "Skipping AdminUser creation - set DEFAULT_ADMIN_USER and DEFAULT_ADMIN_PW in .env to create an admin user"
+  puts "Skipping AdminUser creation - set DEFAULT_ADMIN_USER and DEFAULT_ADMIN_PW environment variables or in .env files to create an admin user"
 end
