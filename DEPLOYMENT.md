@@ -51,6 +51,10 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
    - `MONGODB_URI` - MongoDB connection string from your existing MongoDB service (use internal URL)
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable (see below)
 
+   **Recommended for Initial Setup:**
+   - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+
    **Optional:**
    - `RAILS_MAX_THREADS=5` - Puma thread count
    - `RAILS_SERVE_STATIC_FILES=true` - Serve precompiled assets from Rails
@@ -68,10 +72,11 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
    Coolify automatically generates magic variables when referenced in `docker-compose.yml`:
 
    - `SERVICE_PASSWORD_WEB` - Auto-generated 32-character password (used for `SECRET_KEY_BASE`)
+   - `SERVICE_PASSWORD_ADMIN` - Auto-generated password (used for `DEFAULT_ADMIN_PW` if referenced)
    - `SERVICE_URL_WEB` - Auto-populated web service URL
    - `SERVICE_FQDN_WEB` - Auto-populated fully qualified domain name
 
-   These are automatically available to all services in the compose file. The `SECRET_KEY_BASE` will use `SERVICE_PASSWORD_WEB` if available, otherwise falls back to a manually set value.
+   These are automatically available to all services in the compose file. Both `SECRET_KEY_BASE` and `DEFAULT_ADMIN_PW` will use their respective magic variables if available, otherwise falling back to manually set values.
 
 5. **Assign Domain**
 
@@ -84,6 +89,7 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
    - Click Deploy in Coolify
    - Coolify will build the Docker image and start services
    - The `migrate` service will run once to execute database migrations
+   - The `seed` service will run once after migrations to create the default admin user (if `DEFAULT_ADMIN_USER` and `DEFAULT_ADMIN_PW` are set)
 
 ### Option 2: Internal PostgreSQL and External MongoDB
 
@@ -113,6 +119,10 @@ Use `docker-compose.coolify-pg.yml` when you want PostgreSQL managed within the 
    - `MONGODB_URI` - MongoDB connection string from your existing MongoDB service (use internal URL)
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable
 
+   **Recommended for Initial Setup:**
+   - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+
    **Optional PostgreSQL Configuration:**
    - `POSTGRES_USER` - PostgreSQL username (default: `postgres`)
    - `POSTGRES_PASSWORD` - PostgreSQL password (default: uses `SERVICE_PASSWORD_POSTGRES` magic variable, or `postgres`)
@@ -138,6 +148,7 @@ Use `docker-compose.coolify-pg.yml` when you want PostgreSQL managed within the 
    - Click Deploy in Coolify
    - PostgreSQL will be created automatically with persistent storage
    - The `migrate` service will run once to execute database migrations
+   - The `seed` service will run once after migrations to create the default admin user (if `DEFAULT_ADMIN_USER` and `DEFAULT_ADMIN_PW` are set)
 
 ### Option 3: Internal PostgreSQL and MongoDB (Fully Self-Contained)
 
@@ -167,6 +178,10 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
    - `MONGO_ROOT_USERNAME` - MongoDB root username (default: `admin`)
    - `MONGO_ROOT_PASSWORD` - MongoDB root password (default: uses `SERVICE_PASSWORD_MONGODB` magic variable, or `admin`)
 
+   **Recommended for Initial Setup:**
+   - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+
    **Optional:**
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable
    - `RAILS_MAX_THREADS=5` - Puma thread count
@@ -191,6 +206,7 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
    - Click Deploy in Coolify
    - Both PostgreSQL and MongoDB will be created automatically with persistent storage
    - The `migrate` service will run once to execute database migrations
+   - The `seed` service will run once after migrations to create the default admin user (if `DEFAULT_ADMIN_USER` and `DEFAULT_ADMIN_PW` are set)
 
 6. **No Network Configuration Needed**
 
@@ -202,12 +218,14 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
 - **web** - Rails application (Puma server) on port 3000
 - **worker** - Solid Queue background job processor (excluded from health checks)
 - **migrate** - Database migrations (runs once, then stops)
+- **seed** - Database seeding (runs once after migrate, creates admin user if configured)
 
 **Option 2 (docker-compose.coolify-pg.yml):**
 - **postgres** - PostgreSQL 16 database with persistent storage
 - **web** - Rails application (Puma server) on port 3000
 - **worker** - Solid Queue background job processor (excluded from health checks)
 - **migrate** - Database migrations (runs once, then stops)
+- **seed** - Database seeding (runs once after migrate, creates admin user if configured)
 
 **Option 3 (docker-compose.coolify-full.yml):**
 - **postgres** - PostgreSQL 16 database with persistent storage
@@ -215,6 +233,29 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
 - **web** - Rails application (Puma server) on port 3000
 - **worker** - Solid Queue background job processor (excluded from health checks)
 - **migrate** - Database migrations (runs once, then stops)
+- **seed** - Database seeding (runs once after migrate, creates admin user if configured)
+
+### Setting Up Default Admin User
+
+To create an initial admin user for login, you have two options:
+
+**Option 1: Use Magic Variables (Recommended)**
+- Set **`DEFAULT_ADMIN_USER`** - The email address for the admin user (e.g., `admin@example.com`)
+- Coolify will automatically generate **`SERVICE_PASSWORD_ADMIN`** - A secure auto-generated password
+
+The compose files are configured to use `SERVICE_PASSWORD_ADMIN` automatically if available, falling back to a manually set `DEFAULT_ADMIN_PW` if needed.
+
+**Option 2: Manual Password**
+- Set **`DEFAULT_ADMIN_USER`** - The email address for the admin user
+- Set **`DEFAULT_ADMIN_PW`** - Your chosen password
+
+**How It Works:**
+- These variables are used by the `seed` service which runs automatically after migrations on first deployment
+- The password uses the pattern: `${SERVICE_PASSWORD_ADMIN:-${DEFAULT_ADMIN_PW}}` - meaning it will use the magic variable if available, otherwise your manual password
+- If `DEFAULT_ADMIN_USER` is not set, the seed step will skip creating an admin user (you'll see a message in the logs)
+- The generated password will appear in Coolify's Environment Variables UI for your reference
+
+**Important**: After the first deployment, if you need to create additional admin users or change passwords, you can do so through the Avo admin interface or by running `rails console` in the web service container.
 
 ### Troubleshooting
 
@@ -326,6 +367,8 @@ docker-compose -f docker-compose.local.yml build --no-cache
 - `SECRET_KEY_BASE` - Auto-generated via `SERVICE_PASSWORD_WEB` or manually set
 - `DATABASE_URL` - PostgreSQL connection string
 - `MONGODB_URI` - MongoDB connection string
+- `DEFAULT_ADMIN_USER` - Email for initial admin user (recommended for first deployment)
+- `DEFAULT_ADMIN_PW` - Password for initial admin user (recommended for first deployment)
 - `RAILS_LOG_TO_STDOUT=true` - For log aggregation
 - `RAILS_SERVE_STATIC_FILES=true` - Serve assets from Rails
 - `RAILS_MAX_THREADS=5` - Puma thread count
