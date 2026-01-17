@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class QueueIncrementalTicketsWorkerTest < ActiveJob::TestCase
+class QueueIncrementalTicketsJobTest < ActiveJob::TestCase
   test "enqueues incremental jobs for ready desks" do
     ready_desk = Desk.create!(
       domain: 'ready.zendesk.com',

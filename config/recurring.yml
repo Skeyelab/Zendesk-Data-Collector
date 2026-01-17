@@ -12,7 +12,7 @@
 development:
   queue_incremental_tickets:
     class: QueueIncrementalTicketsJob
-    schedule: every 6 seconds
+    schedule: every minute
 
 production:
   queue_incremental_tickets:

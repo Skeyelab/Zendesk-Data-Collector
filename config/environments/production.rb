@@ -56,7 +56,6 @@ Rails.application.configure do
 
   # Use a real queuing backend for Active Job (and separate queues per environment)
   config.active_job.queue_adapter = :solid_queue
-  config.solid_queue.connects_to = { database: { writing: :queue } }
   # config.active_job.queue_name_prefix = "ZD-DataCollector_#{Rails.env}"
   config.action_mailer.perform_caching = false
 

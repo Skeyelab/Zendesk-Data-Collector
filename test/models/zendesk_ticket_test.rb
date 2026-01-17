@@ -55,7 +55,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
 
   test "should upsert based on id and domain" do
     # Create initial ticket
-    ticket1 = ZendeskTicket.create!(
+    ZendeskTicket.create!(
       zendesk_id: 999,
       domain: 'test.zendesk.com',
       subject: 'Original Subject',
