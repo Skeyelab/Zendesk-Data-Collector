@@ -1,0 +1,122 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}
+      - POSTGRES_DB=${POSTGRES_DB:-zd_desk_data_collector_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    exclude_from_hc: true
+
+  mongodb:
+    image: mongo:7
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    exclude_from_hc: true
+
+  web:
+    build:
+      context: .
+      target: production
+    command: bundle exec puma -C config/puma.rb
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER}
+      - DEFAULT_ADMIN_PW=${SERVICE_PASSWORD_ADMIN:-${DEFAULT_ADMIN_PW}}
+      - RAILS_LOG_TO_STDOUT=true
+      - RAILS_SERVE_STATIC_FILES=true
+      - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
+      - SERVICE_FQDN_WEB_3000
+      - RAILS_HOST=${SERVICE_FQDN_WEB_3000}
+      - SERVICE_PASSWORD_ADMIN
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: production
+    command: bundle exec bin/jobs start
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+      - RAILS_LOG_TO_STDOUT=true
+      - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
+      - SOLID_QUEUE_CONCURRENCY=${SOLID_QUEUE_CONCURRENCY:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    exclude_from_hc: true
+
+  migrate:
+    build:
+      context: .
+      target: production
+    command: bundle exec rails db:migrate
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+    exclude_from_hc: true
+
+  seed:
+    build:
+      context: .
+      target: production
+    command: bundle exec rails db:seed
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER}
+      - DEFAULT_ADMIN_PW=${SERVICE_PASSWORD_ADMIN:-${DEFAULT_ADMIN_PW}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    exclude_from_hc: true
+
+volumes:
+  postgres_data:
+  mongodb_data:
