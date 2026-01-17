@@ -40,7 +40,7 @@ services:
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
-      - DEFAULT_ADMIN_USER=${SERVICE_PASSWORD_ADMIN:-admin@example.com}
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - RAILS_LOG_TO_STDOUT=true
       - RAILS_SERVE_STATIC_FILES=true
@@ -48,7 +48,6 @@ services:
       - PORT=3000
       - SERVICE_URL_WEB
       - RAILS_HOST=${SERVICE_FQDN_WEB}
-      - SERVICE_PASSWORD_ADMIN
     ports:
       - "3000:3000"
     depends_on:
@@ -107,7 +106,7 @@ services:
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
-      - DEFAULT_ADMIN_USER=${SERVICE_PASSWORD_ADMIN:-admin@example.com}
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
     depends_on:
       postgres:
