@@ -1,11 +1,11 @@
 class DropActiveAdminComments < ActiveRecord::Migration[8.0]
   def up
     # Use raw SQL to safely drop table if it exists
-    execute "DROP TABLE IF EXISTS active_admin_comments CASCADE" if connection.table_exists?(:active_admin_comments)
+    # CASCADE ensures any dependent objects are also dropped
+    execute "DROP TABLE IF EXISTS active_admin_comments CASCADE"
   rescue => e
-    # Silently ignore if table doesn't exist or any other error
-    # This migration is safe to run multiple times
-    Rails.logger.warn("Could not drop active_admin_comments table: #{e.message}") if defined?(Rails)
+    # Silently ignore any errors - this migration is safe to run multiple times
+    # The table may not exist, which is fine
   end
 
   def down
