@@ -31,6 +31,10 @@ RUN bundle install
 # Copy application code
 COPY . .
 
+# Create necessary directories for Rails (log, tmp, storage) before switching user
+RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
+    chmod -R 755 log tmp storage
+
 # Create a non-root user
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
@@ -55,9 +59,10 @@ RUN bundle install --without development test && \
 # Copy application code
 COPY . .
 
-# Precompile assets (Propshaft handles this, but ensure public assets directory exists)
-RUN mkdir -p public/assets && \
-    chmod -R 755 public
+# Create necessary directories for Rails (log, tmp, storage) before switching user
+RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
+    mkdir -p public/assets && \
+    chmod -R 755 public log tmp storage
 
 # Create a non-root user
 RUN useradd -m -u 1000 appuser && \
