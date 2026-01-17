@@ -1,5 +1,24 @@
 # Change Log
 
+## [v2.0](https://github.com/Skeyelab/Zendesk-Data-Collector/tree/v2.0) (2025-01-17)
+
+### Major Changes
+- **Rails 8 Modernization**: Migrated from ActiveAdmin to Avo admin interface
+- **Job System**: Replaced workers with Rails jobs for better compatibility
+- **Docker Deployment**: Added Coolify deployment configurations with Docker Compose
+- **Heroku Removal**: Removed all Heroku-specific references and configurations
+- **Documentation**: Updated README to correctly describe data storage architecture
+
+### Merged Pull Requests
+- Update README to correctly describe data storage architecture [\#42](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/42)
+- Remove Heroku references and update to Docker deployment [\#40](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/40)
+- Coolify Docker deployment [\#38](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/38)
+- Coolify Docker deployment [\#37](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/37)
+- Coolify Docker deployment [\#36](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/36)
+- Coolify Docker deployment [\#35](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/35)
+- Rails 8 modernization [\#33](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/33)
+- Sub-PR for Rails 8 modernization [\#34](https://github.com/Skeyelab/Zendesk-Data-Collector/pull/34)
+
 ## [v1.0](https://github.com/Skeyelab/Zendesk-Data-Collector/tree/v1.0) (2018-04-27)
 **Merged pull requests:**
 
