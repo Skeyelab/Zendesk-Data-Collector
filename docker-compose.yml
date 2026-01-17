@@ -1,0 +1,49 @@
+services:
+  web:
+    build:
+      context: .
+      target: production
+    command: bundle exec puma -C config/puma.rb
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URI=${MONGODB_URI}
+      - RAILS_LOG_TO_STDOUT=true
+      - RAILS_SERVE_STATIC_FILES=true
+      - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
+      - PORT=3000
+      - SERVICE_URL_WEB
+      - RAILS_HOST=${SERVICE_FQDN_WEB}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: production
+    command: bundle exec bin/jobs start
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URI=${MONGODB_URI}
+      - RAILS_LOG_TO_STDOUT=true
+      - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
+      - SOLID_QUEUE_CONCURRENCY=${SOLID_QUEUE_CONCURRENCY:-5}
+    restart: unless-stopped
+    exclude_from_hc: true
+
+  migrate:
+    build:
+      context: .
+      target: production
+    command: bundle exec rails db:migrate
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URI=${MONGODB_URI}
+    restart: "no"
+    exclude_from_hc: true

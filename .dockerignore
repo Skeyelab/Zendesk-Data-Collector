@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+CHANGELOG.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.cursor/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+log/*
+*.log
+
+# Temporary files
+tmp/*
+*.tmp
+*.temp
+
+# Test files
+test/
+spec/
+coverage/
+.rspec
+capybara-*.html
+
+# Development files
+.ruby-gemset
+.ruby-version
+.rvmrc
+.byebug_history
+
+# Database
+*.sqlite3
+*.sqlite3-journal
+db/*.sqlite3
+
+# Node modules (if any)
+node_modules/
+
+# Bundler
+vendor/bundle
+.bundle
+
+# Cache
+.cache/
+
+# Docker files (don't copy into itself)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Build artifacts
+*.o
+*.a
+*.so
+
+# OS files
+.DS_Store
+Thumbs.db
