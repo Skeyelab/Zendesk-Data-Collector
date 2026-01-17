@@ -1,10 +1,11 @@
 Rails.application.routes.draw do
-  devise_for :admin_users, ActiveAdmin::Devise.config
-  ActiveAdmin.routes(self)
+  devise_for :admin_users
 
-  require 'sidekiq/web'
-  mount Sidekiq::Web => '/sidekiq'
+  authenticate :admin_user do
+    mount Avo::Engine, at: Avo.configuration.root_path
+    mount MissionControl::Jobs::Engine, at: "/jobs"
+  end
 
   # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
-  root to: "admin/desks#index"
+  root to: redirect(Avo.configuration.root_path)
 end

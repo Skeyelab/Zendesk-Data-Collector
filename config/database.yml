@@ -20,9 +20,14 @@ default: &default
   # For details on connection pooling, see rails configuration guide
   # http://guides.rubyonrails.org/configuring.html#database-pooling
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Disable GSS encryption to prevent pg gem segfaults on macOS
+  gssencmode: disable
 
 development:
   <<: *default
+  <% if ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  <% else %>
   database: zd_desk_data_collector_development
 
   # The specified database role being used to connect to postgres.
@@ -51,13 +56,26 @@ development:
   #   log, notice, warning, error, fatal, and panic
   # Defaults to warning.
   #min_messages: notice
+  <% end %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
   <<: *default
+  <% if ENV['TEST_DATABASE_URI'] || ENV['TEST_DATABASE_URL'] %>
+  url: <%= ENV['TEST_DATABASE_URI'] || ENV['TEST_DATABASE_URL'] %>
+  <% elsif ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  <%
+    # Use the same connection as development but with test database name
+    base_uri = ENV['DATABASE_URI'] || ENV['DATABASE_URL']
+    # Replace the database name in the URI with the test database name
+    test_uri = base_uri.sub(%r{/[^/]+$}, '/zd_desk_data_collector_test')
+  %>
+  url: <%= test_uri %>
+  <% else %>
   database: zd_desk_data_collector
+  <% end %>
 
 # As with config/secrets.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
@@ -80,5 +98,5 @@ test:
 #
 production:
   <<: *default
-  url: <%= ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
 

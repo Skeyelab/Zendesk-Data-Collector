@@ -1,21 +1,21 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  domain: MyString
+  domain: desk-one.zendesk.com
   user: MyString
   token: MyString
-  last_timestamp: 2017-04-13 10:53:19
-  last_timestamp_event: 2017-04-13 10:53:19
-  wait_till: 2017-04-13 10:53:19
-  wait_till_event: 2017-04-13 10:53:19
+  last_timestamp: 0
+  last_timestamp_event: 0
+  wait_till: 0
+  wait_till_event: 0
   active: false
 
 two:
-  domain: MyString
+  domain: desk-two.zendesk.com
   user: MyString
   token: MyString
-  last_timestamp: 2017-04-13 10:53:19
-  last_timestamp_event: 2017-04-13 10:53:19
-  wait_till: 2017-04-13 10:53:19
-  wait_till_event: 2017-04-13 10:53:19
+  last_timestamp: 0
+  last_timestamp_event: 0
+  wait_till: 0
+  wait_till_event: 0
   active: false

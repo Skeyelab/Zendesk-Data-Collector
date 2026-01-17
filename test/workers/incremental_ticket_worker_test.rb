@@ -1,6 +1,9 @@
 require 'test_helper'
-class IncrementalTicketWorkerTest < MiniTest::Unit::TestCase
-  def test_example
-    skip "add some examples to (or delete) #{__FILE__}"
+
+class IncrementalTicketWorkerTest < ActiveJob::TestCase
+  test "enqueues incremental job" do
+    assert_enqueued_with(job: IncrementalTicketJob) do
+      IncrementalTicketJob.perform_later(123)
+    end
   end
 end

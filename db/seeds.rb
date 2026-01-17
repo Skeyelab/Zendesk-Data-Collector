@@ -5,4 +5,11 @@
 #
 #   movies = Movie.create([{ name: 'Star Wars' }, { name: 'Lord of the Rings' }])
 #   Character.create(name: 'Luke', movie: movies.first)
-AdminUser.create!(email: ENV['DEFAULT_ADMIN_USER'], password: ENV['DEFAULT_ADMIN_PW'], password_confirmation: ENV['DEFAULT_ADMIN_PW'])
+if ENV['DEFAULT_ADMIN_USER'] && ENV['DEFAULT_ADMIN_PW']
+  AdminUser.find_or_create_by!(email: ENV['DEFAULT_ADMIN_USER']) do |user|
+    user.password = ENV['DEFAULT_ADMIN_PW']
+    user.password_confirmation = ENV['DEFAULT_ADMIN_PW']
+  end
+else
+  puts "Skipping AdminUser creation - set DEFAULT_ADMIN_USER and DEFAULT_ADMIN_PW in .env to create an admin user"
+end
