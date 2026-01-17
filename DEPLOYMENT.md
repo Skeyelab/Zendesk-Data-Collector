@@ -49,6 +49,9 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
    **Required:**
    - `DATABASE_URL` - PostgreSQL connection string from your existing PostgreSQL service (use internal URL)
    - `MONGODB_URI` - MongoDB connection string from your existing MongoDB service (use internal URL)
+   - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string (32 bytes) for encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string (32 bytes) for deterministic encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string (32 bytes) for key derivation (generate with `SecureRandom.hex(32)`)
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable (see below)
 
    **Recommended for Initial Setup:**
@@ -117,6 +120,9 @@ Use `docker-compose.coolify-pg.yml` when you want PostgreSQL managed within the 
 
    **Required:**
    - `MONGODB_URI` - MongoDB connection string from your existing MongoDB service (use internal URL)
+   - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string (32 bytes) for encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string (32 bytes) for deterministic encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string (32 bytes) for key derivation (generate with `SecureRandom.hex(32)`)
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable
 
    **Recommended for Initial Setup:**
@@ -181,6 +187,11 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
    **Recommended for Initial Setup:**
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
    - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+
+   **Required for Active Record Encryption:**
+   - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string (32 bytes) for encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string (32 bytes) for deterministic encryption (generate with `SecureRandom.hex(32)`)
+   - `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string (32 bytes) for key derivation (generate with `SecureRandom.hex(32)`)
 
    **Optional:**
    - Optionally: `SECRET_KEY_BASE` - If not using the magic variable
@@ -367,6 +378,9 @@ docker-compose -f docker-compose.local.yml build --no-cache
 - `SECRET_KEY_BASE` - Auto-generated via `SERVICE_PASSWORD_WEB` or manually set
 - `DATABASE_URL` - PostgreSQL connection string
 - `MONGODB_URI` - MongoDB connection string
+- `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string for Active Record encryption (required)
+- `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string for deterministic encryption (required)
+- `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string for key derivation (required)
 - `DEFAULT_ADMIN_USER` - Email for initial admin user (recommended for first deployment)
 - `DEFAULT_ADMIN_PW` - Password for initial admin user (recommended for first deployment)
 - `RAILS_LOG_TO_STDOUT=true` - For log aggregation
