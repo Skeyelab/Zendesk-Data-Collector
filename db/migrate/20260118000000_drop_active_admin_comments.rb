@@ -1,5 +1,20 @@
 class DropActiveAdminComments < ActiveRecord::Migration[8.0]
-  def change
-    drop_table :active_admin_comments, if_exists: true
+  def up
+    if table_exists?(:active_admin_comments)
+      drop_table :active_admin_comments
+    end
+  end
+
+  def down
+    create_table :active_admin_comments do |t|
+      t.string :namespace
+      t.text :body
+      t.string :resource_id, null: false
+      t.string :resource_type, null: false
+      t.references :author, polymorphic: true
+      t.timestamps
+    end
+    add_index :active_admin_comments, [:namespace]
+    add_index :active_admin_comments, [:resource_type, :resource_id]
   end
 end
