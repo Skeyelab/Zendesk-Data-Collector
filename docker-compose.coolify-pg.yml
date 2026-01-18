@@ -15,6 +15,16 @@ services:
     restart: unless-stopped
     exclude_from_hc: true
 
+  mongo-express:
+    image: mongo-express:latest
+    environment:
+      - ME_CONFIG_MONGODB_URL=${MONGODB_URI}
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-admin}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${SERVICE_PASSWORD_MONGOEXPRESS:-${MONGO_EXPRESS_PASSWORD:-admin}}
+      - SERVICE_FQDN_MONGOEXPRESS_8081
+    restart: unless-stopped
+    exclude_from_hc: true
+
   web:
     build:
       context: .
@@ -30,14 +40,11 @@ services:
       - RAILS_LOG_TO_STDOUT=true
       - RAILS_SERVE_STATIC_FILES=true
       - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
-      - PORT=3000
-      - SERVICE_URL_WEB
-      - RAILS_HOST=${SERVICE_FQDN_WEB}
+      - SERVICE_FQDN_WEB_3000
+      - RAILS_HOST=${SERVICE_FQDN_WEB_3000}
       - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
       - ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY}
       - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
-    ports:
-      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy

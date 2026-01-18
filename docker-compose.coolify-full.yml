@@ -30,6 +30,19 @@ services:
     restart: unless-stopped
     exclude_from_hc: true
 
+  mongo-express:
+    image: mongo-express:latest
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-admin}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${SERVICE_PASSWORD_MONGOEXPRESS:-${MONGO_EXPRESS_PASSWORD:-admin}}
+      - SERVICE_FQDN_MONGOEXPRESS_8081
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    exclude_from_hc: true
+
   web:
     build:
       context: .
