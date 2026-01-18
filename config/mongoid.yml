@@ -19,7 +19,7 @@ test:
 production:
   clients:
     default:
-      uri: <%= ENV['MONGODB_URI'] || 'NOT_SET' %>
+      uri: <%= ENV['MONGODB_URI'] %>
       options:
         read:
           mode: :primary
