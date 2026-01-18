@@ -33,7 +33,7 @@ services:
   mongo-express:
     image: mongo-express:latest
     environment:
-      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/?authSource=admin
       - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-admin}
       - ME_CONFIG_BASICAUTH_PASSWORD=${SERVICE_PASSWORD_MONGOEXPRESS:-${MONGO_EXPRESS_PASSWORD:-admin}}
       - SERVICE_FQDN_MONGOEXPRESS_8081
