@@ -39,7 +39,12 @@ class ZendeskTicket < ApplicationRecord
   def assign_ticket_data(ticket_hash)
     # Ensure domain is set
     ticket_hash = ticket_hash.dup
-    ticket_hash['domain'] ||= domain if domain.present?
+    # Set domain from hash if provided, otherwise use existing domain
+    if ticket_hash['domain'].present?
+      self.domain = ticket_hash['domain']
+    elsif domain.present?
+      ticket_hash['domain'] = domain
+    end
 
     # Extract zendesk_id from 'id' field
     zendesk_id_value = ticket_hash['id'] || ticket_hash[:id] || ticket_hash['zendesk_id'] || ticket_hash[:zendesk_id]
@@ -56,6 +61,17 @@ class ZendeskTicket < ApplicationRecord
       'assignee' => ->(val) { extract_assignee_fields(val) },
       'group' => ->(val) { extract_group_fields(val) },
       'organization' => ->(val) { extract_organization_fields(val) },
+      # Support flat field names (for backward compatibility and direct API responses)
+      'req_name' => :req_name,
+      'req_email' => :req_email,
+      'req_id' => :req_id,
+      'req_external_id' => :req_external_id,
+      'assignee_name' => :assignee_name,
+      'assignee_id' => :assignee_id,
+      'assignee_external_id' => :assignee_external_id,
+      'group_name' => :group_name,
+      'group_id' => :group_id,
+      'organization_name' => :organization_name,
       'generated_timestamp' => :generated_timestamp,
       'created_at' => ->(val) { parse_time_field(val, :created_at) },
       'updated_at' => ->(val) { parse_time_field(val, :updated_at) },
