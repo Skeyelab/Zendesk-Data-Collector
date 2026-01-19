@@ -1,13 +1,9 @@
-# syntax=docker/dockerfile:1.4
-
 # Base stage for shared dependencies
 FROM ruby:3.2.4-slim AS base
 
-# Install system dependencies in a single layer with cache cleanup
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update -qq && \
+    apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
@@ -21,30 +17,30 @@ WORKDIR /app
 FROM base AS development
 
 # Install development dependencies
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get update -qq && \
+    apt-get install -y \
     nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Gemfile and Gemfile.lock first (for better caching)
 COPY Gemfile Gemfile.lock ./
 
-# Install gems with cache mount for faster rebuilds
-RUN --mount=type=cache,target=/usr/local/bundle/cache \
-    bundle install
+# Install gems
+RUN bundle install
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
+# Create non-root user and set ownership
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
 # Copy application code with correct ownership
 COPY --chown=appuser:appuser . .
 
-# Switch to appuser and create directories with proper permissions
-USER appuser
+# Ensure directories exist with correct permissions (as root, before switching)
 RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
-    chmod -R 755 log tmp storage
+    chown -R appuser:appuser log tmp storage
+
+# Switch to appuser
+USER appuser
 
 # Production stage
 FROM base AS production
@@ -52,22 +48,24 @@ FROM base AS production
 # Copy Gemfile and Gemfile.lock first (for better caching)
 COPY Gemfile Gemfile.lock ./
 
-# Install gems with cache mount and cleanup in same layer
-RUN --mount=type=cache,target=/usr/local/bundle/cache \
-    bundle install --without development test --jobs=4 --retry=3 && \
-    rm -rf ~/.bundle/ /usr/local/bundle/cache && \
+# Install gems without development and test groups
+RUN bundle install --without development test && \
+    rm -rf ~/.bundle && \
     find /usr/local/bundle/gems -name "*.git" -type d -exec rm -rf {} + 2>/dev/null || true
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
+# Create non-root user and set /app ownership
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
 # Copy application code with correct ownership
 COPY --chown=appuser:appuser . .
 
-# Switch to appuser and create directories with proper permissions
-USER appuser
+# Ensure directories exist with correct permissions (as root, before switching)
 RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage public && \
-    chmod -R 755 public log tmp storage
+    chown -R appuser:appuser log tmp storage public
+
+# Switch to appuser
+USER appuser
 
 # Expose port
 EXPOSE 3000
