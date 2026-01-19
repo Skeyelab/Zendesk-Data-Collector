@@ -10,7 +10,7 @@ class Avo::Resources::DeskResource < Avo::BaseResource
     field :token, as: :password, required: true, placeholder: "Enter Zendesk API token"
     field :active, as: :boolean
     field :queued, as: :boolean, readonly: true
-    field :last_timestamp, as: :number, readonly: true
+    field :last_timestamp, as: :number, readonly: false
     field :last_timestamp_event, as: :number, readonly: true
     field :wait_till, as: :number, readonly: true
     field :wait_till_event, as: :number, readonly: true
