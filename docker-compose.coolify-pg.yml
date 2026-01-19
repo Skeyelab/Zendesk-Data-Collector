@@ -15,16 +15,6 @@ services:
     restart: unless-stopped
     exclude_from_hc: true
 
-  mongo-express:
-    image: mongo-express:latest
-    environment:
-      - ME_CONFIG_MONGODB_URL=${MONGODB_URI}
-      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-admin}
-      - ME_CONFIG_BASICAUTH_PASSWORD=${SERVICE_PASSWORD_MONGOEXPRESS:-${MONGO_EXPRESS_PASSWORD:-admin}}
-      - SERVICE_FQDN_MONGOEXPRESS_8081
-    restart: unless-stopped
-    exclude_from_hc: true
-
   web:
     build:
       context: .
@@ -34,7 +24,6 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=${MONGODB_URI}
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - RAILS_LOG_TO_STDOUT=true
@@ -59,7 +48,6 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=${MONGODB_URI}
       - RAILS_LOG_TO_STDOUT=true
       - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
       - SOLID_QUEUE_CONCURRENCY=${SOLID_QUEUE_CONCURRENCY:-5}
@@ -81,7 +69,6 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=${MONGODB_URI}
       - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
       - ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY}
       - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
@@ -100,7 +87,6 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=${MONGODB_URI}
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}

@@ -15,34 +15,6 @@ services:
     restart: unless-stopped
     exclude_from_hc: true
 
-  mongodb:
-    image: mongo:7
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
-      - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}
-    volumes:
-      - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    exclude_from_hc: true
-
-  mongo-express:
-    image: mongo-express:latest
-    environment:
-      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/?authSource=admin
-      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME:-admin}
-      - ME_CONFIG_BASICAUTH_PASSWORD=${SERVICE_PASSWORD_MONGOEXPRESS:-${MONGO_EXPRESS_PASSWORD:-admin}}
-      - SERVICE_FQDN_MONGOEXPRESS_8081
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    restart: unless-stopped
-    exclude_from_hc: true
-
   web:
     build:
       context: .
@@ -52,7 +24,7 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-root}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - RAILS_LOG_TO_STDOUT=true
@@ -67,8 +39,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
     restart: unless-stopped
 
   worker:
@@ -80,7 +50,6 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
       - RAILS_LOG_TO_STDOUT=true
       - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
       - SOLID_QUEUE_CONCURRENCY=${SOLID_QUEUE_CONCURRENCY:-5}
@@ -89,8 +58,6 @@ services:
       - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
     depends_on:
       postgres:
-        condition: service_healthy
-      mongodb:
         condition: service_healthy
     restart: unless-stopped
     exclude_from_hc: true
@@ -104,14 +71,11 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
       - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
       - ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY}
       - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
     depends_on:
       postgres:
-        condition: service_healthy
-      mongodb:
         condition: service_healthy
     restart: "no"
     exclude_from_hc: true
@@ -125,7 +89,7 @@ services:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-root}:${SERVICE_PASSWORD_MONGODB:-${MONGO_ROOT_PASSWORD:-admin}}@mongodb:27017/zendesk_data_collector_production?authSource=admin
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
@@ -134,8 +98,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: "no"
@@ -143,4 +105,3 @@ services:
 
 volumes:
   postgres_data:
-  mongodb_data:

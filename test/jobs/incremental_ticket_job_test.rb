@@ -21,12 +21,14 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       created_at: Time.now.iso8601,
       updated_at: Time.now.iso8601,
       generated_timestamp: Time.now.to_i,
-      req_name: 'John Doe',
-      req_email: 'john@example.com'
+      requester: {
+        name: 'John Doe',
+        email: 'john@example.com'
+      }
     }
   end
 
-  test "should fetch tickets from Zendesk and save to MongoDB" do
+  test "should fetch tickets from Zendesk and save to PostgreSQL" do
     # Mock Zendesk API response
     stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets?start_time=1000")
       .with(basic_auth: ['test@example.com/token', 'test_token'])
@@ -52,7 +54,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     assert_equal 'john@example.com', ticket.req_email
   end
 
-  test "should update existing ticket in MongoDB" do
+  test "should update existing ticket in PostgreSQL" do
     # Create existing ticket
     ZendeskTicket.create!(
       zendesk_id: 12345,

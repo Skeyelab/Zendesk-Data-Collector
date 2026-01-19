@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_17_010856) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_19_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -227,6 +227,65 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_17_010856) do
     t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
     t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
+  end
+
+  create_table "zendesk_tickets", force: :cascade do |t|
+    t.integer "agent_wait_time_in_minutes"
+    t.integer "agent_wait_time_in_minutes_within_business_hours"
+    t.datetime "assigned_at"
+    t.bigint "assignee_external_id"
+    t.bigint "assignee_id"
+    t.string "assignee_name"
+    t.string "assignee_stations"
+    t.datetime "created_at", null: false
+    t.text "current_tags"
+    t.string "domain", null: false
+    t.string "due_date"
+    t.integer "first_reply_time_in_minutes"
+    t.integer "first_reply_time_in_minutes_within_business_hours"
+    t.integer "first_resolution_time_in_minutes"
+    t.integer "first_resolution_time_in_minutes_within_business_hours"
+    t.integer "full_resolution_time_in_minutes"
+    t.integer "full_resolution_time_in_minutes_within_business_hours"
+    t.integer "generated_timestamp"
+    t.bigint "group_id"
+    t.string "group_name"
+    t.string "group_stations"
+    t.datetime "initially_assigned_at"
+    t.integer "on_hold_time_in_minutes"
+    t.integer "on_hold_time_in_minutes_within_business_hours"
+    t.string "organization_name"
+    t.string "priority"
+    t.jsonb "raw_data", default: {}
+    t.string "reopens"
+    t.string "replies"
+    t.string "req_email"
+    t.string "req_external_id"
+    t.bigint "req_id"
+    t.string "req_name"
+    t.integer "requester_wait_time_in_minutes"
+    t.integer "requester_wait_time_in_minutes_within_business_hours"
+    t.string "resolution_time"
+    t.string "satisfaction_score"
+    t.datetime "solved_at"
+    t.string "status"
+    t.string "subject"
+    t.string "ticket_type"
+    t.datetime "updated_at", null: false
+    t.string "url"
+    t.string "via"
+    t.integer "zendesk_id", null: false
+    t.index ["assignee_id"], name: "index_zendesk_tickets_on_assignee_id"
+    t.index ["created_at"], name: "index_zendesk_tickets_on_created_at"
+    t.index ["domain"], name: "index_zendesk_tickets_on_domain"
+    t.index ["generated_timestamp"], name: "index_zendesk_tickets_on_generated_timestamp"
+    t.index ["group_id"], name: "index_zendesk_tickets_on_group_id"
+    t.index ["raw_data"], name: "index_zendesk_tickets_on_raw_data", using: :gin
+    t.index ["solved_at"], name: "index_zendesk_tickets_on_solved_at"
+    t.index ["status"], name: "index_zendesk_tickets_on_status"
+    t.index ["updated_at"], name: "index_zendesk_tickets_on_updated_at"
+    t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
+    t.index ["zendesk_id"], name: "index_zendesk_tickets_on_zendesk_id"
   end
 
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

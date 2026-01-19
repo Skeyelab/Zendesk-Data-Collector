@@ -8,8 +8,6 @@ class ZendeskTicketTest < ActiveSupport::TestCase
       subject: 'Test Ticket',
       status: 'open',
       priority: 'normal',
-      created_at: Time.now,
-      updated_at: Time.now,
       generated_timestamp: Time.now.to_i
     }
   end
@@ -22,7 +20,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     assert_equal 'Test Ticket', ticket.subject
   end
 
-  test "should require id field" do
+  test "should require zendesk_id field" do
     @ticket_data.delete(:zendesk_id)
     ticket = ZendeskTicket.new(@ticket_data)
     assert_not ticket.valid?
@@ -36,24 +34,33 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     assert_includes ticket.errors[:domain], "can't be blank"
   end
 
-  test "should allow dynamic fields from Zendesk API" do
-    ticket = ZendeskTicket.create!(
-      @ticket_data.merge(
-        req_name: 'John Doe',
-        req_email: 'john@example.com',
-        assignee_name: 'Jane Smith',
-        current_tags: 'urgent,important',
-        first_reply_time_in_minutes: 30
-      )
-    )
+  test "should allow dynamic fields from Zendesk API via raw_data" do
+    ticket_hash = {
+      'id' => 12345,
+      'domain' => 'test.zendesk.com',
+      'subject' => 'Test Ticket',
+      'status' => 'open',
+      'req_name' => 'John Doe',
+      'req_email' => 'john@example.com',
+      'assignee_name' => 'Jane Smith',
+      'tags' => ['urgent', 'important'],
+      'first_reply_time_in_minutes' => 30,
+      'custom_field_123' => 'custom_value'
+    }
+    ticket = ZendeskTicket.new
+    ticket.assign_ticket_data(ticket_hash)
+    ticket.save!
+
     assert_equal 'John Doe', ticket.req_name
     assert_equal 'john@example.com', ticket.req_email
     assert_equal 'Jane Smith', ticket.assignee_name
     assert_equal 'urgent,important', ticket.current_tags
     assert_equal 30, ticket.first_reply_time_in_minutes
+    # Access custom field via raw_data
+    assert_equal 'custom_value', ticket.raw_data['custom_field_123']
   end
 
-  test "should upsert based on id and domain" do
+  test "should upsert based on zendesk_id and domain" do
     # Create initial ticket
     ZendeskTicket.create!(
       zendesk_id: 999,
@@ -78,7 +85,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     assert_equal 'solved', updated_ticket.status
   end
 
-  test "should allow multiple tickets with same id for different domains" do
+  test "should allow multiple tickets with same zendesk_id for different domains" do
     ticket1 = ZendeskTicket.create!(
       zendesk_id: 100,
       domain: 'domain1.zendesk.com',
@@ -123,8 +130,6 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     ticket = ZendeskTicket.create!(
       zendesk_id: 200,
       domain: 'test.zendesk.com',
-      created_at: now,
-      updated_at: now,
       generated_timestamp: now.to_i
     )
 
@@ -159,5 +164,78 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     assert_equal 'Short Name', ticket.req_name
     assert ticket.current_tags.length > 255
     assert ticket.url.present?
+  end
+
+  test "should extract requester fields from nested hash" do
+    ticket_hash = {
+      'id' => 500,
+      'domain' => 'test.zendesk.com',
+      'requester' => {
+        'name' => 'John Doe',
+        'email' => 'john@example.com',
+        'id' => 123,
+        'external_id' => 'ext_123'
+      }
+    }
+    ticket = ZendeskTicket.new
+    ticket.assign_ticket_data(ticket_hash)
+    ticket.save!
+
+    assert_equal 'John Doe', ticket.req_name
+    assert_equal 'john@example.com', ticket.req_email
+    assert_equal 123, ticket.req_id
+    assert_equal 'ext_123', ticket.req_external_id
+  end
+
+  test "should extract assignee fields from nested hash" do
+    ticket_hash = {
+      'id' => 600,
+      'domain' => 'test.zendesk.com',
+      'assignee' => {
+        'name' => 'Jane Smith',
+        'id' => 456,
+        'external_id' => 789
+      }
+    }
+    ticket = ZendeskTicket.new
+    ticket.assign_ticket_data(ticket_hash)
+    ticket.save!
+
+    assert_equal 'Jane Smith', ticket.assignee_name
+    assert_equal 456, ticket.assignee_id
+    assert_equal 789, ticket.assignee_external_id
+  end
+
+  test "should parse time fields from strings" do
+    ticket_hash = {
+      'id' => 700,
+      'domain' => 'test.zendesk.com',
+      'created_at' => Time.now.iso8601,
+      'updated_at' => Time.now.iso8601,
+      'solved_at' => Time.now.iso8601
+    }
+    ticket = ZendeskTicket.new
+    ticket.assign_ticket_data(ticket_hash)
+    ticket.save!
+
+    assert_not_nil ticket.created_at
+    assert_not_nil ticket.updated_at
+    assert_not_nil ticket.solved_at
+  end
+
+  test "should store complete raw data in JSONB" do
+    ticket_hash = {
+      'id' => 800,
+      'domain' => 'test.zendesk.com',
+      'subject' => 'Test',
+      'custom_field_1' => 'value1',
+      'custom_field_2' => { 'nested' => 'value' }
+    }
+    ticket = ZendeskTicket.new
+    ticket.assign_ticket_data(ticket_hash)
+    ticket.save!
+
+    assert_equal 'value1', ticket.raw_data['custom_field_1']
+    assert_equal({ 'nested' => 'value' }, ticket.raw_data['custom_field_2'])
   end
 end

@@ -100,7 +100,6 @@ GEM
     base64 (0.3.0)
     bcrypt (3.1.21)
     bigdecimal (4.0.1)
-    bson (5.2.0)
     builder (3.3.0)
     byebug (13.0.0)
       reline (>= 0.6.0)
@@ -203,19 +202,6 @@ GEM
       railties (>= 7.1)
       stimulus-rails
       turbo-rails
-    mongo (2.22.0)
-      base64
-      bson (>= 4.14.1, < 6.0.0)
-    mongoid (9.0.9)
-      activemodel (>= 5.1, < 8.2, != 7.0.0)
-      concurrent-ruby (>= 1.0.5, < 2.0)
-      mongo (>= 2.18.0, < 3.0.0)
-    mongoid-compatibility (1.0.0)
-      activesupport
-      mongoid (>= 2.0)
-    mongoid-rspec (4.2.0)
-      mongoid (>= 3.0, < 10.0)
-      mongoid-compatibility (>= 0.5.1)
     multipart-post (2.4.1)
     net-http (0.9.1)
       uri (>= 0.11.1)
@@ -431,8 +417,6 @@ DEPENDENCIES
   foreman
   jbuilder (~> 2.13)
   mission_control-jobs
-  mongoid (~> 9.0)
-  mongoid-rspec
   pg (~> 1.5)
   propshaft
   pry-rails

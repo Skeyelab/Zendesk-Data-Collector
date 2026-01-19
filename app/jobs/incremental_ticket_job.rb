@@ -10,7 +10,7 @@ class IncrementalTicketJob < ApplicationJob
       tickets = client.tickets.incremental_export(start_time)
 
       tickets.each do |ticket_data|
-        save_ticket_to_mongodb(ticket_data, desk.domain)
+        save_ticket_to_postgres(ticket_data, desk.domain)
       end
 
       # Update desk timestamp if we got new data
@@ -34,7 +34,7 @@ class IncrementalTicketJob < ApplicationJob
 
   private
 
-  def save_ticket_to_mongodb(ticket_data, domain)
+  def save_ticket_to_postgres(ticket_data, domain)
     # Convert ticket data to hash if it's not already
     ticket_hash = ticket_data.is_a?(Hash) ? ticket_data : ticket_data.to_h
 
@@ -48,24 +48,8 @@ class IncrementalTicketJob < ApplicationJob
       domain: domain
     )
 
-    # Update all fields from the API response
-    ticket_hash.each do |key, value|
-      # Convert symbol keys to strings
-      field_name = key.to_s
-      # Skip id and domain as they're already set
-      next if field_name == 'id' || field_name == 'domain'
-
-      # Handle timestamp fields
-      if field_name.end_with?('_at') && value.is_a?(String)
-        begin
-          ticket[field_name] = Time.parse(value)
-        rescue ArgumentError
-          ticket[field_name] = value
-        end
-      else
-        ticket[field_name] = value
-      end
-    end
+    # Use the model's assign_ticket_data method to handle field mapping
+    ticket.assign_ticket_data(ticket_hash)
 
     ticket.save!
   rescue StandardError => e

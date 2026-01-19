@@ -1,6 +1,6 @@
 # Zendesk-Data-Collector
 
-This Rails application extracts all ticket data from Zendesk in real time to a MongoDB database. It automatically handles all fields, including dynamically created custom fields.
+This Rails application extracts all ticket data from Zendesk in real time to a PostgreSQL database. It automatically handles all fields, including dynamically created custom fields, using JSONB for flexible schema support.
 
 ## Deployment
 
@@ -13,13 +13,14 @@ The point of this app is to then attach a reporting package to the database to c
 
 During deployment, you will configure an admin user account. This is used to login to the system at your deployed URL at `/admin/login`. Once logged in, you will add your Zendesk accounts with a username and API token.
 
-If your desk is "active" in the admin panel, the system will collect data from the API and populate the MongoDB database with ticket data.
+If your desk is "active" in the admin panel, the system will collect data from the API and populate the PostgreSQL database with ticket data.
 
 ## Data Storage Architecture
 
-The application uses two databases:
+The application uses PostgreSQL for all data storage:
 
-- **MongoDB** - Stores all Zendesk ticket data with dynamic field support
-- **PostgreSQL** - Stores admin user accounts, desk configuration records, and background job queue
+- **PostgreSQL** - Stores all Zendesk ticket data (with JSONB for dynamic fields), admin user accounts, desk configuration records, and background job queue
 
-At this point you can use your reporting tool of choice with MongoDB. You can find the connection info in your deployment environment variables.
+Common ticket fields are stored as indexed columns for fast queries, while the complete API response (including custom fields) is stored in a JSONB column. This provides both performance and flexibility.
+
+At this point you can use your reporting tool of choice with PostgreSQL. You can find the connection info in your deployment environment variables.
