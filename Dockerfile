@@ -1,9 +1,13 @@
+# syntax=docker/dockerfile:1.4
+
 # Base stage for shared dependencies
 FROM ruby:3.2.4-slim AS base
 
-# Install system dependencies
-RUN apt-get update -qq && \
-    apt-get install -y \
+# Install system dependencies in a single layer with cache cleanup
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
@@ -16,58 +20,51 @@ WORKDIR /app
 # Development stage
 FROM base AS development
 
-# Install development dependencies (needed for gem compilation)
-RUN apt-get update -qq && \
-    apt-get install -y \
+# Install development dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
     nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Gemfile and Gemfile.lock
+# Copy Gemfile and Gemfile.lock first (for better caching)
 COPY Gemfile Gemfile.lock ./
 
-# Install gems (including development and test groups for local development)
-RUN bundle install
+# Install gems with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/usr/local/bundle/cache \
+    bundle install
 
-# Copy application code
-COPY . .
-
-# Create necessary directories for Rails (log, tmp, storage) before switching user
-RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
+# Create non-root user before copying code (allows COPY --chown)
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
     chmod -R 755 log tmp storage
 
-# Create a non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+# Copy application code with correct ownership
+COPY --chown=appuser:appuser . .
+
 USER appuser
 
 # Production stage
 FROM base AS production
 
-# Install minimal production dependencies
-RUN apt-get update -qq && \
-    apt-get install -y \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Gemfile and Gemfile.lock
+# Copy Gemfile and Gemfile.lock first (for better caching)
 COPY Gemfile Gemfile.lock ./
 
-# Install gems without development and test groups
-RUN bundle install --without development test && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
+# Install gems with cache mount and cleanup in same layer
+RUN --mount=type=cache,target=/usr/local/bundle/cache \
+    bundle install --without development test --jobs=4 --retry=3 && \
+    rm -rf ~/.bundle/ /usr/local/bundle/cache && \
+    find /usr/local/bundle/gems -name "*.git" -type d -exec rm -rf {} + 2>/dev/null || true
 
-# Copy application code
-COPY . .
-
-# Create necessary directories for Rails (log, tmp, storage) before switching user
-# Propshaft (Rails 8) serves assets dynamically from filesystem, no precompilation needed
-RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
-    mkdir -p public && \
+# Create non-root user and directories before copying code
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage public && \
     chmod -R 755 public log tmp storage
 
-# Create a non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+# Copy application code with correct ownership
+COPY --chown=appuser:appuser . .
+
 USER appuser
 
 # Expose port
