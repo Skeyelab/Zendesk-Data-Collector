@@ -48,4 +48,11 @@ Rails.application.configure do
 
   # Active Storage configuration
   config.active_storage.service = :local
+
+  # Log to STDOUT if RAILS_LOG_TO_STDOUT is set (useful for foreman/docker)
+  if ENV['RAILS_LOG_TO_STDOUT'].present?
+    logger = ActiveSupport::Logger.new(STDOUT)
+    logger.formatter = config.log_formatter
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
+  end
 end

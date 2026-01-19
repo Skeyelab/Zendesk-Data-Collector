@@ -15,18 +15,6 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   web:
     build:
       context: .
@@ -35,7 +23,6 @@ services:
     environment:
       - RAILS_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/zd_desk_data_collector_development
-      - MONGODB_URI=mongodb://mongodb:27017/zendesk_data_collector_development
       - SECRET_KEY_BASE=${SECRET_KEY_BASE:-development_secret_key_base_change_in_production}
       - RAILS_LOG_TO_STDOUT=true
     ports:
@@ -46,8 +33,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
 
   worker:
     build:
@@ -57,7 +42,6 @@ services:
     environment:
       - RAILS_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/zd_desk_data_collector_development
-      - MONGODB_URI=mongodb://mongodb:27017/zendesk_data_collector_development
       - SECRET_KEY_BASE=${SECRET_KEY_BASE:-development_secret_key_base_change_in_production}
       - RAILS_LOG_TO_STDOUT=true
       - SOLID_QUEUE_CONCURRENCY=1
@@ -67,10 +51,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
 
 volumes:
   postgres_data:
-  mongodb_data:
   bundle_cache:

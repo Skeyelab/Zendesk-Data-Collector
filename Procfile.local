@@ -2,3 +2,4 @@
 # spawned processes
 env:
   SOLID_QUEUE_CONCURRENCY: 1
+  RAILS_LOG_TO_STDOUT: true

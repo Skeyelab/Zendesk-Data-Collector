@@ -23,7 +23,7 @@ class ActiveSupport::TestCase
   # Add more helper methods to be used by all tests here...
   setup do
     ActiveJob::Base.queue_adapter = :test
-    ZendeskTicket.delete_all if defined?(ZendeskTicket)
+    ZendeskTicket.destroy_all if defined?(ZendeskTicket)
   end
 end
 

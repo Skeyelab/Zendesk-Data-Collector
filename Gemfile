@@ -13,7 +13,6 @@ gem 'dotenv-rails', groups: [:development, :test]
 
 # Database
 gem 'pg', '~> 1.5'
-gem 'mongoid', '~> 9.0'
 
 # Server
 gem 'puma', '~> 6.0'
@@ -51,7 +50,6 @@ group :test do
   gem 'rspec-rails'
   gem 'simplecov', require: false
   gem 'webmock'
-  gem 'mongoid-rspec'
   gem 'capybara'
   gem 'selenium-webdriver'
 end
