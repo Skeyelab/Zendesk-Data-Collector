@@ -14,16 +14,10 @@ Rails.application.configure do
   config.consider_all_requests_local       = false
   config.action_controller.perform_caching = true
 
-  # Disable serving static files from the `/public` folder by default since
-  # Apache or NGINX already handles this.
-  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present?
-
-  # Compress JavaScripts and CSS.
-  config.assets.js_compressor = :uglifier
-  # config.assets.css_compressor = :sass
-
-  # Do not fallback to assets pipeline if a precompiled asset is missed.
-  config.assets.compile = false
+  # Enable serving static files from the `/public` folder.
+  # With Propshaft, assets are served dynamically, but we need this enabled
+  # for mounted engines like Mission Control Jobs to serve their assets.
+  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || true
 
   config.secret_key_base = ENV["SECRET_KEY_BASE"]
 

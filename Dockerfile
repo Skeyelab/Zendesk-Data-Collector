@@ -60,8 +60,9 @@ RUN bundle install --without development test && \
 COPY . .
 
 # Create necessary directories for Rails (log, tmp, storage) before switching user
+# Propshaft (Rails 8) serves assets dynamically from filesystem, no precompilation needed
 RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
-    mkdir -p public/assets && \
+    mkdir -p public && \
     chmod -R 755 public log tmp storage
 
 # Create a non-root user
