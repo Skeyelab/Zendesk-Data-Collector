@@ -57,20 +57,30 @@ class ZendeskTicket < ApplicationRecord
       'priority' => :priority,
       'type' => :ticket_type,
       'url' => :url,
+      # Nested objects (from Show Ticket API or when included)
       'requester' => ->(val) { extract_requester_fields(val) },
       'assignee' => ->(val) { extract_assignee_fields(val) },
       'group' => ->(val) { extract_group_fields(val) },
       'organization' => ->(val) { extract_organization_fields(val) },
-      # Support flat field names (for backward compatibility and direct API responses)
+      # Flat ID fields (from Incremental Export API - these are the primary fields)
+      'requester_id' => :req_id,
+      'assignee_id' => :assignee_id,
+      'group_id' => :group_id,
+      'organization_id' => ->(val) { 
+        # Store organization_id in raw_data if we ever add the column
+        # For now, it's accessible via raw_data
+      },
+      'submitter_id' => ->(val) {
+        # Store submitter_id in raw_data (not extracted to column yet)
+      },
+      # Support flat field names (for backward compatibility)
       'req_name' => :req_name,
       'req_email' => :req_email,
       'req_id' => :req_id,
       'req_external_id' => :req_external_id,
       'assignee_name' => :assignee_name,
-      'assignee_id' => :assignee_id,
       'assignee_external_id' => :assignee_external_id,
       'group_name' => :group_name,
-      'group_id' => :group_id,
       'organization_name' => :organization_name,
       'generated_timestamp' => :generated_timestamp,
       'created_at' => ->(val) { parse_time_field(val, :created_at) },
