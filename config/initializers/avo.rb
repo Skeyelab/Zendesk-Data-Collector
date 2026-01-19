@@ -24,4 +24,10 @@ Avo.configure do |config|
   end
   config.sign_out_path_name = :destroy_admin_user_session_path
   config.root_path = "/avo"
+
+  # In production, use STDOUT for logging (Docker-friendly)
+  # In development/test, Avo will use its default file logger
+  if Rails.env.production? && ENV['RAILS_LOG_TO_STDOUT'].present?
+    config.logger = ActiveSupport::Logger.new(STDOUT)
+  end
 end

@@ -35,15 +35,16 @@ COPY Gemfile Gemfile.lock ./
 RUN --mount=type=cache,target=/usr/local/bundle/cache \
     bundle install
 
-# Create non-root user before copying code (allows COPY --chown)
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
-    chmod -R 755 log tmp storage
+# Create non-root user
+RUN useradd -m -u 1000 appuser
 
 # Copy application code with correct ownership
 COPY --chown=appuser:appuser . .
 
+# Switch to appuser and create directories with proper permissions
 USER appuser
+RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage && \
+    chmod -R 755 log tmp storage
 
 # Production stage
 FROM base AS production
@@ -57,15 +58,16 @@ RUN --mount=type=cache,target=/usr/local/bundle/cache \
     rm -rf ~/.bundle/ /usr/local/bundle/cache && \
     find /usr/local/bundle/gems -name "*.git" -type d -exec rm -rf {} + 2>/dev/null || true
 
-# Create non-root user and directories before copying code
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage public && \
-    chmod -R 755 public log tmp storage
+# Create non-root user
+RUN useradd -m -u 1000 appuser
 
 # Copy application code with correct ownership
 COPY --chown=appuser:appuser . .
 
+# Switch to appuser and create directories with proper permissions
 USER appuser
+RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage public && \
+    chmod -R 755 public log tmp storage
 
 # Expose port
 EXPOSE 3000
