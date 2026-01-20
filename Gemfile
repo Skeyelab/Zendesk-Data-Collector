@@ -44,6 +44,7 @@ group :development do
   gem 'pry-rails'
   gem 'seed_dump'
   gem 'foreman'
+  gem 'standard'
 end
 
 group :test do
