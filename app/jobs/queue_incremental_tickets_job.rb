@@ -13,7 +13,7 @@ class QueueIncrementalTicketsJob < ApplicationJob
     checking_msg = "[QueueIncrementalTicketsJob] Checking for ready desks..."
     Rails.logger.info checking_msg
     puts checking_msg
-    
+
     desks = Desk.readyToGo.order("last_timestamp desc")
     desk_count = desks.count
 
@@ -21,7 +21,7 @@ class QueueIncrementalTicketsJob < ApplicationJob
       found_msg = "[QueueIncrementalTicketsJob] Found #{desk_count} ready desk(s)"
       Rails.logger.info found_msg
       puts found_msg
-      
+
       desks.each do |desk|
         queue_msg = "[QueueIncrementalTicketsJob] Queuing job for desk: #{desk.domain} (ID: #{desk.id}, last_timestamp: #{desk.last_timestamp})"
         Rails.logger.info queue_msg
@@ -30,7 +30,7 @@ class QueueIncrementalTicketsJob < ApplicationJob
         desk.save
         IncrementalTicketJob.perform_later(desk.id)
       end
-      
+
       queued_msg = "[QueueIncrementalTicketsJob] Queued #{desk_count} job(s)"
       Rails.logger.info queued_msg
       puts queued_msg
