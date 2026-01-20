@@ -60,6 +60,12 @@ RUN useradd -m -u 1000 appuser && \
 # Copy application code with correct ownership
 COPY --chown=appuser:appuser . .
 
+# Precompile assets for production (Propshaft creates manifest and fingerprinted assets)
+# This ensures Mission Control Jobs and other engine assets are available
+ENV RAILS_ENV=production
+ENV SECRET_KEY_BASE=dummy_for_precompile
+RUN bundle exec rails assets:precompile || true
+
 # Ensure directories exist with correct permissions (as root, before switching)
 RUN mkdir -p log tmp/pids tmp/cache tmp/sockets tmp/storage storage public && \
     chown -R appuser:appuser log tmp storage public

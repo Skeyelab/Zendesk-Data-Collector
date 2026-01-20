@@ -15,8 +15,8 @@ Rails.application.configure do
   config.action_controller.perform_caching = true
 
   # Enable serving static files from the `/public` folder.
-  # With Propshaft, assets are served dynamically, but we need this enabled
-  # for mounted engines like Mission Control Jobs to serve their assets.
+  # Propshaft serves assets through its middleware, but we need this enabled
+  # for any precompiled assets and for mounted engines.
   config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || true
 
   config.secret_key_base = ENV["SECRET_KEY_BASE"]

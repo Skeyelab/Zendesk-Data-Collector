@@ -66,7 +66,7 @@ class ZendeskTicket < ApplicationRecord
       'requester_id' => :req_id,
       'assignee_id' => :assignee_id,
       'group_id' => :group_id,
-      'organization_id' => ->(val) { 
+      'organization_id' => ->(val) {
         # Store organization_id in raw_data if we ever add the column
         # For now, it's accessible via raw_data
       },
