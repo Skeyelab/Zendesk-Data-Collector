@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_20_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_19_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -274,9 +274,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_20_000000) do
     t.datetime "updated_at", null: false
     t.string "url"
     t.string "via"
-    t.datetime "zendesk_created_at"
     t.integer "zendesk_id", null: false
-    t.datetime "zendesk_updated_at"
     t.index ["assignee_id"], name: "index_zendesk_tickets_on_assignee_id"
     t.index ["created_at"], name: "index_zendesk_tickets_on_created_at"
     t.index ["domain"], name: "index_zendesk_tickets_on_domain"
@@ -286,10 +284,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_20_000000) do
     t.index ["solved_at"], name: "index_zendesk_tickets_on_solved_at"
     t.index ["status"], name: "index_zendesk_tickets_on_status"
     t.index ["updated_at"], name: "index_zendesk_tickets_on_updated_at"
-    t.index ["zendesk_created_at"], name: "index_zendesk_tickets_on_zendesk_created_at"
     t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
     t.index ["zendesk_id"], name: "index_zendesk_tickets_on_zendesk_id"
-    t.index ["zendesk_updated_at"], name: "index_zendesk_tickets_on_zendesk_updated_at"
   end
 
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

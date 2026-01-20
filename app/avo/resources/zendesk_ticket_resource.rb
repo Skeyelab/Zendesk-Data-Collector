@@ -47,26 +47,13 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     # Organization fields
     field :organization_name, as: :text, sortable: true
 
-    # Time fields - Core Zendesk timestamps
+    # Time fields
     field :generated_timestamp, as: :number, readonly: true, sortable: true
-    field :zendesk_created_at, as: :date_time, readonly: true, sortable: true
-    field :zendesk_updated_at, as: :date_time, readonly: true, sortable: true
+    field :created_at, as: :date_time, readonly: true, sortable: true
+    field :updated_at, as: :date_time, readonly: true, sortable: true
     field :assigned_at, as: :date_time, readonly: true, sortable: true
     field :initially_assigned_at, as: :date_time, readonly: true, sortable: true
     field :solved_at, as: :date_time, readonly: true, sortable: true
-    field :due_at, as: :date_time, readonly: true, sortable: true
-    field :due_date, as: :text, readonly: true
-    
-    # Time fields - Ticket Metrics timestamps
-    field :status_updated_at, as: :date_time, readonly: true, sortable: true
-    field :latest_comment_added_at, as: :date_time, readonly: true, sortable: true
-    field :requester_updated_at, as: :date_time, readonly: true, sortable: true
-    field :assignee_updated_at, as: :date_time, readonly: true, sortable: true
-    field :custom_status_updated_at, as: :date_time, readonly: true, sortable: true
-    
-    # Rails timestamps
-    field :created_at, as: :date_time, readonly: true, sortable: true
-    field :updated_at, as: :date_time, readonly: true, sortable: true
 
     # Time metrics
     field :first_reply_time_in_minutes, as: :number, readonly: true, sortable: true
