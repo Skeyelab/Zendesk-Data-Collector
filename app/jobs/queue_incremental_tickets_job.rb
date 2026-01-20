@@ -2,6 +2,14 @@ class QueueIncrementalTicketsJob < ApplicationJob
   queue_as :default
 
   def perform
+    # Reset stuck queued flags before checking for ready desks
+    stuck_reset = Desk.reset_stuck_queued_flags!
+    if stuck_reset > 0
+      reset_msg = "[QueueIncrementalTicketsJob] Reset #{stuck_reset} stuck queued flag(s)"
+      Rails.logger.info reset_msg
+      puts reset_msg
+    end
+
     checking_msg = "[QueueIncrementalTicketsJob] Checking for ready desks..."
     Rails.logger.info checking_msg
     puts checking_msg

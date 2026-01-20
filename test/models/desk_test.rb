@@ -129,4 +129,106 @@ class DeskTest < ActiveSupport::TestCase
     assert_not @desk.valid?
     assert_includes @desk.errors[:token], "can't be blank"
   end
+
+  test "stuck_queued scope finds desks queued for more than 5 minutes" do
+    # Create a stuck desk (queued, active, updated more than 5 minutes ago)
+    stuck_desk = Desk.create!(
+      domain: 'stuck.zendesk.com',
+      user: 'stuck@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 10.minutes.ago
+    )
+
+    # Create a recently queued desk (should not be stuck)
+    recent_desk = Desk.create!(
+      domain: 'recent.zendesk.com',
+      user: 'recent@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 2.minutes.ago
+    )
+
+    # Create an inactive queued desk (should not be stuck)
+    inactive_desk = Desk.create!(
+      domain: 'inactive.zendesk.com',
+      user: 'inactive@example.com',
+      token: 'token',
+      queued: true,
+      active: false,
+      updated_at: 10.minutes.ago
+    )
+
+    # Create a not queued desk (should not be stuck)
+    not_queued_desk = Desk.create!(
+      domain: 'notqueued.zendesk.com',
+      user: 'notqueued@example.com',
+      token: 'token',
+      queued: false,
+      active: true,
+      updated_at: 10.minutes.ago
+    )
+
+    stuck_desks = Desk.stuck_queued
+    assert_includes stuck_desks, stuck_desk
+    assert_not_includes stuck_desks, recent_desk
+    assert_not_includes stuck_desks, inactive_desk
+    assert_not_includes stuck_desks, not_queued_desk
+  end
+
+  test "reset_stuck_queued_flags! resets stuck desks" do
+    # Create stuck desks
+    stuck_desk1 = Desk.create!(
+      domain: 'stuck1.zendesk.com',
+      user: 'stuck1@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 10.minutes.ago
+    )
+
+    stuck_desk2 = Desk.create!(
+      domain: 'stuck2.zendesk.com',
+      user: 'stuck2@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 15.minutes.ago
+    )
+
+    # Create a recently queued desk (should not be reset)
+    recent_desk = Desk.create!(
+      domain: 'recent.zendesk.com',
+      user: 'recent@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 2.minutes.ago
+    )
+
+    # Reset stuck flags
+    reset_count = Desk.reset_stuck_queued_flags!
+
+    assert_equal 2, reset_count
+    assert_equal false, stuck_desk1.reload.queued
+    assert_equal false, stuck_desk2.reload.queued
+    assert_equal true, recent_desk.reload.queued
+  end
+
+  test "reset_stuck_queued_flags! returns 0 when no stuck desks" do
+    # Create only recently queued desks
+    Desk.create!(
+      domain: 'recent.zendesk.com',
+      user: 'recent@example.com',
+      token: 'token',
+      queued: true,
+      active: true,
+      updated_at: 2.minutes.ago
+    )
+
+    reset_count = Desk.reset_stuck_queued_flags!
+    assert_equal 0, reset_count
+  end
 end

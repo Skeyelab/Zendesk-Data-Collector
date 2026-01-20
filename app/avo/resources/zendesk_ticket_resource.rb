@@ -15,6 +15,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :domain, as: :text, required: true, sortable: true
     field :subject, as: :text, sortable: true
     field :status, as: :select, options: {
+      new: "new",
       open: "open",
       pending: "pending",
       solved: "solved",
