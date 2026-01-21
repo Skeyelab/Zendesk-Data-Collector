@@ -78,13 +78,11 @@ jobs:
 
       - name: Run Brakeman security scanner
         run: |
-          gem install brakeman
-          brakeman -q -w2 --no-pager
+          bundle exec brakeman -q -w2 --no-pager
 
       - name: Run bundle-audit
         run: |
-          gem install bundler-audit
-          bundle-audit check --update
+          bundle exec bundle-audit check --update
 
       - name: Upload coverage reports
         if: always()
