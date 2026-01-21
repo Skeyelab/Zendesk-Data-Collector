@@ -14,14 +14,17 @@ class Rack::Attack
   end
 
   # Block suspicious requests
-  blocklist("block bad IPs") do |req|
-    # Add known bad IPs or ranges here
-    # Rack::Attack::Fail2Ban.filter(...)
-  end
+  # Example usage: uncomment and add specific IPs to block
+  # blocklist("block bad IPs") do |req|
+  #   ["1.2.3.4", "5.6.7.8"].include?(req.ip)
+  # end
 
   # Custom response for throttled requests
   self.throttled_responder = lambda do |req|
-    [429, { "Content-Type" => "text/plain" }, 
-     ["Rate limit exceeded. Please retry later.\n"]]
+    [
+      429,
+      { "Content-Type" => "text/plain" },
+      ["Rate limit exceeded. Please retry later.\n"]
+    ]
   end
 end
