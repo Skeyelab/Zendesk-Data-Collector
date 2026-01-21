@@ -45,6 +45,8 @@ group :development do
   gem "seed_dump"
   gem "foreman"
   gem "standard"
+  gem "brakeman"
+  gem "bundler-audit"
 end
 
 group :test do
