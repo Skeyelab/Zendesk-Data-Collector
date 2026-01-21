@@ -13,6 +13,9 @@ module ZDDatacollector
     # Use Solid Queue for background jobs
     config.active_job.queue_adapter = :solid_queue
 
+    # Enable Rack::Attack middleware
+    config.middleware.use Rack::Attack
+
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.
