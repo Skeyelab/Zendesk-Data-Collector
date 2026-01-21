@@ -1,20 +1,20 @@
-ENV['RAILS_ENV'] ||= 'test'
+ENV["RAILS_ENV"] ||= "test"
 
-require 'simplecov'
+require "simplecov"
 
-SimpleCov.start 'rails' do
+SimpleCov.start "rails" do
   enable_coverage :branch
-  add_filter '/test/'
-  add_filter '/config/'
+  add_filter "/test/"
+  add_filter "/config/"
   # Filter out unused skeleton files that Rails generates
-  add_filter '/app/channels/'  # ActionCable not used
-  add_filter '/app/mailers/application_mailer.rb'  # No emails sent
-  add_filter '/app/controllers/avo/desk_resources_controller.rb'  # Empty routing shim
+  add_filter "/app/channels/"  # ActionCable not used
+  add_filter "/app/mailers/application_mailer.rb"  # No emails sent
+  add_filter "/app/controllers/avo/desk_resources_controller.rb"  # Empty routing shim
 end
-require_relative '../config/environment'
-require 'rails/test_help'
-require 'capybara/rails'
-require 'capybara/minitest'
+require_relative "../config/environment"
+require "rails/test_help"
+require "capybara/rails"
+require "capybara/minitest"
 
 class ActiveSupport::TestCase
   # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.

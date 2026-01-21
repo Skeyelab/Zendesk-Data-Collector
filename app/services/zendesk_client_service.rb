@@ -13,7 +13,7 @@ class ZendeskClientService
         desk.wait_till = retry_after + Time.now.to_i
         begin
           desk.save!
-        rescue StandardError => e
+        rescue => e
           Rails.logger.error("Failed to persist rate limit data for Desk ##{desk.id}: #{e.class}: #{e.message}") if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         end
       end

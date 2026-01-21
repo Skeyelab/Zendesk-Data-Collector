@@ -13,8 +13,8 @@ else
             assets.enabled = false
             assets.paths = []
             assets.precompile = []
-            assets.version = '2.0'
-            assets.prefix = '/assets'
+            assets.version = "2.0"
+            assets.prefix = "/assets"
           end
         end
       end
@@ -27,7 +27,7 @@ module Rails
   class Application
     def assets_manifest
       @assets_manifest ||= OpenStruct.new(
-        find_asset: ->(path) { nil },
+        find_asset: ->(path) {},
         assets: {}
       )
     end
@@ -40,9 +40,9 @@ if defined?(InlineSvg)
   InlineSvg.configure do |config|
     config.asset_finder = InlineSvg::StaticAssetFinder.new(
       paths: [
-        Rails.root.join('app', 'assets', 'images'),
+        Rails.root.join("app", "assets", "images"),
         # Add gem paths for avo-icons
-        *Dir.glob(Rails.root.join('vendor', 'gems', '**', 'app', 'assets', 'images')),
+        *Dir.glob(Rails.root.join("vendor", "gems", "**", "app", "assets", "images"))
       ]
     )
   end

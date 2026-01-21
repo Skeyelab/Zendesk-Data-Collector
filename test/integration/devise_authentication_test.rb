@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class DeviseAuthenticationTest < ActionDispatch::IntegrationTest
   test "can sign in with valid credentials" do

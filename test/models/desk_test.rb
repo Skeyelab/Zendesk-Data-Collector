@@ -1,11 +1,11 @@
-require 'test_helper'
+require "test_helper"
 
 class DeskTest < ActiveSupport::TestCase
   def setup
     @desk = Desk.new(
-      domain: 'test.zendesk.com',
-      user: 'test@example.com',
-      token: 'secret_token_123'
+      domain: "test.zendesk.com",
+      user: "test@example.com",
+      token: "secret_token_123"
     )
   end
 
@@ -13,8 +13,8 @@ class DeskTest < ActiveSupport::TestCase
     @desk.save!
     raw_token = Desk.connection.select_value("SELECT token FROM desks WHERE id = #{@desk.id}")
     assert raw_token.present?
-    assert_not_equal 'secret_token_123', raw_token
-    assert_equal 'secret_token_123', @desk.reload.token
+    assert_not_equal "secret_token_123", raw_token
+    assert_equal "secret_token_123", @desk.reload.token
   end
 
   test "should set default values on initialization" do
@@ -40,9 +40,9 @@ class DeskTest < ActiveSupport::TestCase
   test "ready_to_go scope returns desks ready for processing" do
     # Create a desk that should be ready
     ready_desk = Desk.create!(
-      domain: 'ready.zendesk.com',
-      user: 'ready@example.com',
-      token: 'token',
+      domain: "ready.zendesk.com",
+      user: "ready@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600, # 10 minutes ago
       wait_till: Time.now.to_i - 100, # waited already
       active: true,
@@ -51,9 +51,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a desk that should NOT be ready (too recent)
     not_ready_recent = Desk.create!(
-      domain: 'recent.zendesk.com',
-      user: 'recent@example.com',
-      token: 'token',
+      domain: "recent.zendesk.com",
+      user: "recent@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 100, # too recent
       wait_till: Time.now.to_i - 100,
       active: true,
@@ -62,9 +62,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a desk that should NOT be ready (still waiting)
     not_ready_waiting = Desk.create!(
-      domain: 'waiting.zendesk.com',
-      user: 'waiting@example.com',
-      token: 'token',
+      domain: "waiting.zendesk.com",
+      user: "waiting@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600,
       wait_till: Time.now.to_i + 100, # still waiting
       active: true,
@@ -73,9 +73,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a desk that should NOT be ready (inactive)
     not_ready_inactive = Desk.create!(
-      domain: 'inactive.zendesk.com',
-      user: 'inactive@example.com',
-      token: 'token',
+      domain: "inactive.zendesk.com",
+      user: "inactive@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600,
       wait_till: Time.now.to_i - 100,
       active: false,
@@ -84,9 +84,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a desk that should NOT be ready (already queued)
     not_ready_queued = Desk.create!(
-      domain: 'queued.zendesk.com',
-      user: 'queued@example.com',
-      token: 'token',
+      domain: "queued.zendesk.com",
+      user: "queued@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600,
       wait_till: Time.now.to_i - 100,
       active: true,
@@ -110,9 +110,9 @@ class DeskTest < ActiveSupport::TestCase
   test "should validate domain uniqueness" do
     @desk.save!
     duplicate = Desk.new(
-      domain: 'test.zendesk.com',
-      user: 'other@example.com',
-      token: 'other_token'
+      domain: "test.zendesk.com",
+      user: "other@example.com",
+      token: "other_token"
     )
     assert_not duplicate.valid?
     assert_includes duplicate.errors[:domain], "has already been taken"
@@ -133,9 +133,9 @@ class DeskTest < ActiveSupport::TestCase
   test "stuck_queued scope finds desks queued for more than 5 minutes" do
     # Create a stuck desk (queued, active, updated more than 5 minutes ago)
     stuck_desk = Desk.create!(
-      domain: 'stuck.zendesk.com',
-      user: 'stuck@example.com',
-      token: 'token',
+      domain: "stuck.zendesk.com",
+      user: "stuck@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 10.minutes.ago
@@ -143,9 +143,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a recently queued desk (should not be stuck)
     recent_desk = Desk.create!(
-      domain: 'recent.zendesk.com',
-      user: 'recent@example.com',
-      token: 'token',
+      domain: "recent.zendesk.com",
+      user: "recent@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 2.minutes.ago
@@ -153,9 +153,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create an inactive queued desk (should not be stuck)
     inactive_desk = Desk.create!(
-      domain: 'inactive.zendesk.com',
-      user: 'inactive@example.com',
-      token: 'token',
+      domain: "inactive.zendesk.com",
+      user: "inactive@example.com",
+      token: "token",
       queued: true,
       active: false,
       updated_at: 10.minutes.ago
@@ -163,9 +163,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a not queued desk (should not be stuck)
     not_queued_desk = Desk.create!(
-      domain: 'notqueued.zendesk.com',
-      user: 'notqueued@example.com',
-      token: 'token',
+      domain: "notqueued.zendesk.com",
+      user: "notqueued@example.com",
+      token: "token",
       queued: false,
       active: true,
       updated_at: 10.minutes.ago
@@ -181,18 +181,18 @@ class DeskTest < ActiveSupport::TestCase
   test "reset_stuck_queued_flags! resets stuck desks" do
     # Create stuck desks
     stuck_desk1 = Desk.create!(
-      domain: 'stuck1.zendesk.com',
-      user: 'stuck1@example.com',
-      token: 'token',
+      domain: "stuck1.zendesk.com",
+      user: "stuck1@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 10.minutes.ago
     )
 
     stuck_desk2 = Desk.create!(
-      domain: 'stuck2.zendesk.com',
-      user: 'stuck2@example.com',
-      token: 'token',
+      domain: "stuck2.zendesk.com",
+      user: "stuck2@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 15.minutes.ago
@@ -200,9 +200,9 @@ class DeskTest < ActiveSupport::TestCase
 
     # Create a recently queued desk (should not be reset)
     recent_desk = Desk.create!(
-      domain: 'recent.zendesk.com',
-      user: 'recent@example.com',
-      token: 'token',
+      domain: "recent.zendesk.com",
+      user: "recent@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 2.minutes.ago
@@ -220,9 +220,9 @@ class DeskTest < ActiveSupport::TestCase
   test "reset_stuck_queued_flags! returns 0 when no stuck desks" do
     # Create only recently queued desks
     Desk.create!(
-      domain: 'recent.zendesk.com',
-      user: 'recent@example.com',
-      token: 'token',
+      domain: "recent.zendesk.com",
+      user: "recent@example.com",
+      token: "token",
       queued: true,
       active: true,
       updated_at: 2.minutes.ago

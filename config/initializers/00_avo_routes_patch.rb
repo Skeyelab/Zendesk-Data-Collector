@@ -9,7 +9,7 @@ module Avo
     module DynamicRoutes
       def self.draw(router)
         Avo::Resources::ResourceManager.fetch_resources.map do |resource|
-          router.resources resource.route_key, controller: 'resources', param: :id do
+          router.resources resource.route_key, controller: "resources", param: :id do
             router.member do
               router.get :preview
             end

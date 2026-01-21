@@ -1,11 +1,11 @@
-require 'test_helper'
+require "test_helper"
 
 class QueueIncrementalTicketsJobTest < ActiveJob::TestCase
   test "enqueues incremental jobs for ready desks" do
     ready_desk = Desk.create!(
-      domain: 'ready.zendesk.com',
-      user: 'ready@example.com',
-      token: 'token',
+      domain: "ready.zendesk.com",
+      user: "ready@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600,
       wait_till: Time.now.to_i - 100,
       active: true,
@@ -13,9 +13,9 @@ class QueueIncrementalTicketsJobTest < ActiveJob::TestCase
     )
 
     not_ready_desk = Desk.create!(
-      domain: 'queued.zendesk.com',
-      user: 'queued@example.com',
-      token: 'token',
+      domain: "queued.zendesk.com",
+      user: "queued@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 600,
       wait_till: Time.now.to_i - 100,
       active: true,
@@ -37,17 +37,17 @@ class QueueIncrementalTicketsJobTest < ActiveJob::TestCase
   test "should not enqueue jobs when no desks are ready" do
     # Create desks that are not ready
     Desk.create!(
-      domain: 'inactive.zendesk.com',
-      user: 'inactive@example.com',
-      token: 'token',
+      domain: "inactive.zendesk.com",
+      user: "inactive@example.com",
+      token: "token",
       active: false,
       queued: false
     )
 
     Desk.create!(
-      domain: 'too-recent.zendesk.com',
-      user: 'recent@example.com',
-      token: 'token',
+      domain: "too-recent.zendesk.com",
+      user: "recent@example.com",
+      token: "token",
       last_timestamp: Time.now.to_i - 100, # Too recent
       wait_till: Time.now.to_i - 100,
       active: true,

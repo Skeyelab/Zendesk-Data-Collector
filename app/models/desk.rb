@@ -8,7 +8,7 @@ class Desk < ApplicationRecord
   scope :readyToGo, -> {
     current_time = Time.now.to_i
     where("last_timestamp <= ? AND wait_till < ? AND active = ? AND queued = ?",
-          current_time - 300, current_time, true, false)
+      current_time - 300, current_time, true, false)
   }
 
   # Reset queued flag for desks that have been queued for too long (likely stuck)
