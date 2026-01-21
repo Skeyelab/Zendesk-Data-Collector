@@ -76,6 +76,14 @@ jobs:
           bundle exec rails test
         continue-on-error: false
 
+      - name: Run Brakeman security scanner
+        run: |
+          bundle exec brakeman -q -w2 --no-pager
+
+      - name: Run bundle-audit
+        run: |
+          bundle exec bundle-audit check --update
+
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v4
