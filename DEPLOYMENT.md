@@ -56,7 +56,7 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
 
    **Recommended for Initial Setup:**
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
-   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (must be at least 12 characters - optional, can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
 
    **Optional:**
    - `RAILS_MAX_THREADS=5` - Puma thread count
@@ -127,7 +127,7 @@ Use `docker-compose.coolify-pg.yml` when you want PostgreSQL managed within the 
 
    **Recommended for Initial Setup:**
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
-   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (must be at least 12 characters - optional, can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
 
    **Optional PostgreSQL Configuration:**
    - `POSTGRES_USER` - PostgreSQL username (default: `postgres`)
@@ -186,7 +186,7 @@ Use `docker-compose.coolify-full.yml` when you want both databases managed withi
 
    **Recommended for Initial Setup:**
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
-   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+   - `DEFAULT_ADMIN_PW` - Password for the initial admin user (must be at least 12 characters - optional, can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
 
    **Required for Active Record Encryption:**
    - `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string (32 bytes) for encryption (generate with `SecureRandom.hex(32)`)
@@ -258,11 +258,12 @@ The compose files are configured to use `SERVICE_PASSWORD_ADMIN` automatically i
 
 **Option 2: Manual Password**
 - Set **`DEFAULT_ADMIN_USER`** - The email address for the admin user
-- Set **`DEFAULT_ADMIN_PW`** - Your chosen password
+- Set **`DEFAULT_ADMIN_PW`** - Your chosen password (must be at least 12 characters)
 
 **How It Works:**
 - These variables are used by the `seed` service which runs automatically after migrations on first deployment
 - The password uses the pattern: `${SERVICE_PASSWORD_ADMIN:-${DEFAULT_ADMIN_PW}}` - meaning it will use the magic variable if available, otherwise your manual password
+- Passwords must be at least 12 characters long
 - If `DEFAULT_ADMIN_USER` is not set, the seed step will skip creating an admin user (you'll see a message in the logs)
 - The generated password will appear in Coolify's Environment Variables UI for your reference
 
@@ -382,7 +383,7 @@ docker-compose -f docker-compose.local.yml build --no-cache
 - `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string for deterministic encryption (required)
 - `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string for key derivation (required)
 - `DEFAULT_ADMIN_USER` - Email for initial admin user (recommended for first deployment)
-- `DEFAULT_ADMIN_PW` - Password for initial admin user (recommended for first deployment)
+- `DEFAULT_ADMIN_PW` - Password for initial admin user, minimum 12 characters (recommended for first deployment)
 - `RAILS_LOG_TO_STDOUT=true` - For log aggregation
 - `RAILS_SERVE_STATIC_FILES=true` - Serve assets from Rails
 - `RAILS_MAX_THREADS=5` - Puma thread count

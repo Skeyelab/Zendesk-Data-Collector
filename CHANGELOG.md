@@ -1,5 +1,16 @@
 # Change Log
 
+## Unreleased
+
+### Security Improvements
+- **Devise Security Hardening**: Enhanced authentication security
+  - Enabled account lockout after 5 failed login attempts (unlocks after 1 hour)
+  - Enabled automatic session timeout after 30 minutes of inactivity
+  - Increased minimum password length from 6 to 12 characters
+  - Enabled paranoid mode to prevent user enumeration during password reset
+  - Enabled email notifications for email and password changes
+  - Secured session cookies with httponly, secure (in production), and same_site: :lax flags
+
 ## [v2.0](https://github.com/Skeyelab/Zendesk-Data-Collector/tree/v2.0) (2025-01-17)
 
 ### Major Changes
