@@ -30,6 +30,9 @@ gem "avo", "~> 3.0"
 # Authentication
 gem "devise"
 
+# Rate limiting
+gem "rack-attack"
+
 # Zendesk API
 gem "zendesk_api"
 
