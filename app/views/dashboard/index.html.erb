@@ -1,0 +1,137 @@
+<style>
+  .dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 2rem;
+  }
+  
+  .dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .dashboard-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+  }
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .metric-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s;
+  }
+  
+  .metric-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .metric-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #666;
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .metric-description {
+    font-size: 0.75rem;
+    color: #999;
+    margin: 0;
+  }
+  
+  .chart-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .chart-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 1.5rem 0;
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 1rem;
+    }
+    
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .dashboard-title {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1 class="dashboard-title">Zendesk Metrics</h1>
+    <p class="dashboard-subtitle">Overview of Zendesk tickets and desks</p>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <h3 class="metric-label">Total Tickets</h3>
+      <p class="metric-value"><%= number_with_delimiter(@total_tickets) %></p>
+      <p class="metric-description">Total number of Zendesk tickets</p>
+    </div>
+
+    <div class="metric-card">
+      <h3 class="metric-label">Active Desks</h3>
+      <p class="metric-value"><%= @active_desks %></p>
+      <p class="metric-description">Number of active Zendesk desks</p>
+    </div>
+
+    <div class="metric-card">
+      <h3 class="metric-label">Avg Resolution Time</h3>
+      <% if @has_resolution_data %>
+        <p class="metric-value"><%= @avg_resolution_time %> min</p>
+        <p class="metric-description">Average resolution time in minutes</p>
+      <% else %>
+        <p class="metric-value" style="color: #999;">N/A</p>
+        <p class="metric-description">No resolution time data available</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3 class="chart-title">Tickets by Status</h3>
+    <% if @tickets_by_status.present? && @tickets_by_status.any? %>
+      <%= pie_chart @tickets_by_status, height: "300px", library: { plugins: { legend: { position: "right" } } } %>
+    <% else %>
+      <p style="color: #999; text-align: center; padding: 2rem;">No ticket data available</p>
+    <% end %>
+  </div>
+</div>

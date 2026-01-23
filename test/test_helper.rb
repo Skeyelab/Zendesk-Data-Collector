@@ -16,6 +16,11 @@ require "rails/test_help"
 require "capybara/rails"
 require "capybara/minitest"
 
+# Note: Avo base classes (MetricCard, ChartkickCard, BaseDashboard) are only available
+# when the Avo engine is fully initialized at runtime. In tests, we skip loading
+# our custom Avo classes to avoid NameError. The classes will work correctly
+# when the application runs normally.
+
 class ActiveSupport::TestCase
   # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
   fixtures :all
