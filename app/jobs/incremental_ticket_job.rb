@@ -1,5 +1,8 @@
 class IncrementalTicketJob < ApplicationJob
+  include ZendeskRateLimitHandler
+
   queue_as :default
+  queue_with_priority 0 # Highest priority - process incremental jobs first
 
   def perform(desk_id)
     desk = Desk.find(desk_id)
@@ -26,6 +29,9 @@ class IncrementalTicketJob < ApplicationJob
         req.params[:start_time] = start_time
         req.params[:include] = "users"
       end
+
+      # Monitor rate limit headers to track remaining requests
+      log_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
 
       # Handle response body (may be already parsed by JSON middleware or a string)
       response_body = if response.body.is_a?(Hash)
@@ -55,9 +61,7 @@ class IncrementalTicketJob < ApplicationJob
         # Enrich ticket with user data from sideloaded users
         enriched_ticket = enrich_ticket_with_users(ticket_data, user_lookup)
 
-        # Fetch and add comments to the ticket
-        enriched_ticket = fetch_ticket_comments(enriched_ticket, client, desk)
-
+        # Save ticket immediately (without comments)
         result = save_ticket_to_postgres(enriched_ticket, desk.domain)
         processed += 1
         case result
@@ -67,6 +71,17 @@ class IncrementalTicketJob < ApplicationJob
           updated += 1
         when :error
           errors += 1
+        end
+
+        # Enqueue comment fetch job with a small delay to throttle API calls
+        # This helps prevent rate limiting by staggering comment job execution
+        ticket_id = enriched_ticket["id"] || enriched_ticket[:id]
+        if ticket_id
+          # Add a small delay to stagger comment jobs and reduce API call rate
+          # Delay is based on ticket position to spread out execution over time
+          stagger_seconds = ENV.fetch("COMMENT_JOB_STAGGER_SECONDS", "0.2").to_f
+          delay_seconds = (processed * stagger_seconds) % 5.0 # Cycle every 5 seconds max
+          FetchTicketCommentsJob.set(wait: delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
         end
 
         # Log progress every 10 tickets
@@ -119,234 +134,6 @@ class IncrementalTicketJob < ApplicationJob
   end
 
   private
-
-  def fetch_ticket_comments(ticket_hash, client, desk)
-    ticket_hash = ticket_hash.dup if ticket_hash.is_a?(Hash)
-    ticket_id = ticket_hash["id"] || ticket_hash[:id]
-
-    return ticket_hash unless ticket_id
-
-    max_retries = 3
-    retry_count = 0
-
-    begin
-      comments_msg = "[IncrementalTicketJob] Fetching comments for ticket #{ticket_id}"
-      Rails.logger.debug comments_msg
-
-      response = client.connection.get("/api/v2/tickets/#{ticket_id}/comments.json")
-
-      # Check for 429 rate limit error in response
-      # Handle both response.status and response.env[:status] for different response structures
-      response_status = if response.respond_to?(:status)
-        response.status
-      elsif response.respond_to?(:env) && response.env && response.env[:status]
-        response.env[:status]
-      end
-
-      if response_status == 429
-        # For 429 responses, handle rate limiting
-        # This will set wait_till and handle retry logic
-        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count, max_retries)
-        retry_count += 1
-        if retry_count <= max_retries
-          raise "Rate limit exceeded (429), retrying"
-        else
-          # Max retries reached, continue without comments
-          return ticket_hash
-        end
-      end
-
-      response_body = if response.body.is_a?(Hash)
-        response.body
-      else
-        JSON.parse(response.body)
-      end
-
-      comments_data = response_body["comments"] || []
-
-      if comments_data.any?
-        ticket_hash["comments"] = comments_data
-        comments_count_msg = "[IncrementalTicketJob] Retrieved #{comments_data.size} comment(s) for ticket #{ticket_id}"
-        Rails.logger.debug comments_count_msg
-      end
-    rescue => e
-      # Check if it's a rate limit error (429) from Faraday
-      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
-
-      if is_rate_limit
-        # Try to extract response from error, or use the error itself
-        response_from_error = extract_response_from_error(e)
-        handle_rate_limit_error(response_from_error || e, desk, ticket_id, retry_count, max_retries)
-        retry_count += 1
-        if retry_count <= max_retries
-          retry
-        else
-          # Max retries reached, continue without comments
-          return ticket_hash
-        end
-      end
-
-      error_msg = "[IncrementalTicketJob] Error fetching comments for ticket #{ticket_id}: #{e.message}"
-      Rails.logger.warn error_msg
-      puts error_msg
-      # Continue without comments rather than failing the entire job
-    end
-
-    ticket_hash
-  end
-
-  def extract_response_from_error(error)
-    # Faraday errors typically have a response method
-    return error.response if error.respond_to?(:response) && error.response
-
-    # Some errors might have response in @response instance variable
-    return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
-
-    # Check if error message indicates 429
-    if error.message.include?("status 429")
-      # Try to extract from env if available (ZendeskAPI callback style)
-      return error.env if error.respond_to?(:env) && error.env
-
-      # For WebMock/Faraday, try to get response from exception's internal state
-      # Faraday::ClientError and similar exceptions may have @response or @env
-      if error.instance_variable_defined?(:@response)
-        response = error.instance_variable_get(:@response)
-        return response if response
-      end
-
-      if error.instance_variable_defined?(:@env)
-        env = error.instance_variable_get(:@env)
-        return env if env
-      end
-    end
-
-    nil
-  end
-
-  def handle_rate_limit_error(response_or_env, desk, ticket_id, retry_count, max_retries)
-    retry_after = extract_retry_after(response_or_env)
-    # Use the Retry-After value directly from Zendesk, with minimal additional backoff
-    wait_seconds = retry_after + retry_count # Small incremental backoff per retry
-
-    # Ensure wait_seconds is at least 1 to guarantee wait_till is in the future
-    wait_seconds = [wait_seconds, 1].max
-
-    # Update desk wait_till timestamp - recalculate current_time right before update to ensure it's in the future
-    new_wait_till = wait_seconds + Time.now.to_i
-
-    # Always update wait_till - use update_all to ensure it's persisted even if there are validation issues
-    Desk.where(id: desk.id).update_all(wait_till: new_wait_till)
-    desk.reload
-
-    rate_limit_msg = "[IncrementalTicketJob] Rate limit (429) for ticket #{ticket_id}, waiting #{wait_seconds}s (Retry-After: #{retry_after}s, retry #{retry_count + 1}/#{max_retries})"
-    Rails.logger.warn rate_limit_msg
-    puts rate_limit_msg
-
-    # Wait before retrying
-    sleep(wait_seconds)
-  end
-
-  def extract_retry_after(response_or_env)
-    return 10 unless response_or_env
-
-    # Try to get headers from various possible locations
-    headers = nil
-
-    # First, try accessing response.env (Faraday stores response data in env)
-    if response_or_env.respond_to?(:env) && response_or_env.env
-      env = response_or_env.env
-      # Check response_headers in env hash (Faraday's standard location)
-      if env[:response_headers]
-        headers = env[:response_headers]
-        # Try all possible header key formats (case-insensitive)
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-      # Also check headers directly in env
-      if env[:headers]
-        headers = env[:headers]
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-    end
-
-    # Handle Faraday response object headers (most common case)
-    if response_or_env.respond_to?(:headers)
-      headers = response_or_env.headers || {}
-
-      # Try accessing via get method first (Faraday::Utils::Headers supports this, case-insensitive)
-      if headers.respond_to?(:get)
-        retry_after_header = headers.get("Retry-After") ||
-          headers.get("retry-after") ||
-          headers.get(:retry_after)
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-
-      # Try direct hash access with various key formats
-      if headers.is_a?(Hash) || headers.respond_to?(:[])
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-    end
-
-    # Handle ZendeskAPI callback env hash (from ZendeskClientService)
-    if response_or_env.is_a?(Hash)
-      # Check response_headers in env hash
-      if response_or_env[:response_headers]
-        headers = response_or_env[:response_headers]
-        retry_after_header = headers[:retry_after] ||
-          headers["retry-after"] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-
-      # Also check direct header access in env
-      if response_or_env[:headers]
-        headers = response_or_env[:headers]
-        retry_after_header = headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-    end
-
-    # Default to 10 seconds if Retry-After header not found
-    Rails.logger.warn("[IncrementalTicketJob] Retry-After header not found, defaulting to 10 seconds")
-    10
-  end
 
   def build_user_lookup(users_data)
     return {} unless users_data.is_a?(Array)

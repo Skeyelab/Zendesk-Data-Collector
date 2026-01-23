@@ -1,14 +1,14 @@
 production:
   concurrency: 15
-  queues: "*"
+  queues: "default,comments" # Process default queue (incremental) before comments queue
   polling_interval: 1
 
 development:
   concurrency: 5
-  queues: "*"
+  queues: "default,comments" # Process default queue (incremental) before comments queue
   polling_interval: 1
 
 test:
   concurrency: 2
-  queues: "*"
+  queues: "default,comments" # Process default queue (incremental) before comments queue
   polling_interval: 1
