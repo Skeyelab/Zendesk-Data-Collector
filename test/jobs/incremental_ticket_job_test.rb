@@ -28,6 +28,16 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     }
   end
 
+  def stub_comments_api(ticket_id, comments_data = [])
+    stub_request(:get, "https://test.zendesk.com/api/v2/tickets/#{ticket_id}/comments.json")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {comments: comments_data}.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+  end
+
   test "should fetch tickets from Zendesk and save to PostgreSQL" do
     # Mock Zendesk API response
     stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
@@ -42,6 +52,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         }.to_json,
         headers: {"Content-Type" => "application/json"}
       )
+
+    # Mock comments API
+    stub_comments_api(12345)
 
     assert_difference "ZendeskTicket.count", 1 do
       IncrementalTicketJob.perform_now(@desk.id)
@@ -83,6 +96,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         headers: {"Content-Type" => "application/json"}
       )
 
+    # Mock comments API
+    stub_comments_api(12345)
+
     assert_no_difference "ZendeskTicket.count" do
       IncrementalTicketJob.perform_now(@desk.id)
     end
@@ -105,6 +121,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         }.to_json,
         headers: {"Content-Type" => "application/json"}
       )
+
+    # Mock comments API
+    stub_comments_api(12345)
 
     IncrementalTicketJob.perform_now(@desk.id)
 
@@ -185,6 +204,11 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         headers: {"Content-Type" => "application/json"}
       )
 
+    # Mock comments API for each ticket
+    stub_comments_api(1)
+    stub_comments_api(2)
+    stub_comments_api(3)
+
     assert_difference "ZendeskTicket.count", 3 do
       IncrementalTicketJob.perform_now(@desk.id)
     end
@@ -228,6 +252,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         headers: {"Content-Type" => "application/json"}
       )
 
+    # Mock comments API
+    stub_comments_api(12345)
+
     IncrementalTicketJob.perform_now(@desk.id)
 
     @desk.reload
@@ -253,6 +280,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         }.to_json,
         headers: {"Content-Type" => "application/json"}
       )
+
+    # Mock comments API
+    stub_comments_api(999)
 
     assert_difference "ZendeskTicket.count", 1 do
       IncrementalTicketJob.perform_now(@desk.id)
@@ -281,6 +311,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         }.to_json,
         headers: {"Content-Type" => "application/json"}
       )
+
+    # Mock comments API
+    stub_comments_api(12345)
 
     assert_difference "ZendeskTicket.count", 1 do
       assert_nothing_raised do
@@ -337,6 +370,9 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
         headers: {"Content-Type" => "application/json"}
       )
 
+    # Mock comments API
+    stub_comments_api(12345)
+
     assert_difference "ZendeskTicket.count", 1 do
       IncrementalTicketJob.perform_now(@desk.id)
     end
@@ -350,5 +386,100 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     assert_equal "ext_123", ticket.req_external_id
     assert_equal "Jane Smith", ticket.assignee_name
     assert_equal 54321, ticket.assignee_id
+  end
+
+  test "should fetch and store ticket comments" do
+    # Mock tickets response
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    # Mock comments response
+    comments_data = [
+      {
+        id: 1,
+        type: "Comment",
+        body: "This is the first comment",
+        html_body: "<p>This is the first comment</p>",
+        plain_body: "This is the first comment",
+        public: true,
+        author_id: 12345,
+        created_at: "2024-01-01T10:00:00Z"
+      },
+      {
+        id: 2,
+        type: "Comment",
+        body: "This is the second comment",
+        html_body: "<p>This is the second comment</p>",
+        plain_body: "This is the second comment",
+        public: false,
+        author_id: 67890,
+        created_at: "2024-01-02T11:00:00Z"
+      }
+    ]
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/comments.json")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          comments: comments_data
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      IncrementalTicketJob.perform_now(@desk.id)
+    end
+
+    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    assert_not_nil ticket
+    assert_not_nil ticket.raw_data["comments"]
+    assert_equal 2, ticket.raw_data["comments"].size
+    assert_equal "This is the first comment", ticket.raw_data["comments"][0]["body"]
+    assert_equal "This is the second comment", ticket.raw_data["comments"][1]["body"]
+    assert_equal true, ticket.raw_data["comments"][0]["public"]
+    assert_equal false, ticket.raw_data["comments"][1]["public"]
+  end
+
+  test "should handle comments API errors gracefully" do
+    # Mock tickets response
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    # Mock comments API error
+    stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/comments.json")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(status: 500, body: "Internal Server Error")
+
+    # Should still create the ticket even if comments fail
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_nothing_raised do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+    end
+
+    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    assert_not_nil ticket
+    assert_equal "Test Ticket", ticket.subject
   end
 end

@@ -7,7 +7,9 @@ class IncrementalTicketJob < ApplicationJob
     Rails.logger.info msg
     puts msg
 
-    timestamp_msg = "[IncrementalTicketJob] Last timestamp: #{desk.last_timestamp} (#{Time.at(desk.last_timestamp) if desk.last_timestamp > 0})"
+    timestamp_msg = "[IncrementalTicketJob] Last timestamp: #{desk.last_timestamp} (#{if desk.last_timestamp > 0
+                                                                                        Time.at(desk.last_timestamp)
+                                                                                      end})"
     Rails.logger.info timestamp_msg
     puts timestamp_msg
 
@@ -52,6 +54,10 @@ class IncrementalTicketJob < ApplicationJob
       tickets_data.each do |ticket_data|
         # Enrich ticket with user data from sideloaded users
         enriched_ticket = enrich_ticket_with_users(ticket_data, user_lookup)
+
+        # Fetch and add comments to the ticket
+        enriched_ticket = fetch_ticket_comments(enriched_ticket, client, desk)
+
         result = save_ticket_to_postgres(enriched_ticket, desk.domain)
         processed += 1
         case result
@@ -64,11 +70,11 @@ class IncrementalTicketJob < ApplicationJob
         end
 
         # Log progress every 10 tickets
-        if processed % 10 == 0
-          progress_msg = "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})"
-          Rails.logger.info progress_msg
-          puts progress_msg
-        end
+        next unless processed % 10 == 0
+
+        progress_msg = "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})"
+        Rails.logger.info progress_msg
+        puts progress_msg
       end
 
       summary_msg = "[IncrementalTicketJob] Completed processing: #{processed} total (created: #{created}, updated: #{updated}, errors: #{errors})"
@@ -113,6 +119,41 @@ class IncrementalTicketJob < ApplicationJob
 
   private
 
+  def fetch_ticket_comments(ticket_hash, client, desk)
+    ticket_hash = ticket_hash.dup if ticket_hash.is_a?(Hash)
+    ticket_id = ticket_hash["id"] || ticket_hash[:id]
+
+    return ticket_hash unless ticket_id
+
+    begin
+      comments_msg = "[IncrementalTicketJob] Fetching comments for ticket #{ticket_id}"
+      Rails.logger.debug comments_msg
+
+      response = client.connection.get("/api/v2/tickets/#{ticket_id}/comments.json")
+
+      response_body = if response.body.is_a?(Hash)
+        response.body
+      else
+        JSON.parse(response.body)
+      end
+
+      comments_data = response_body["comments"] || []
+
+      if comments_data.any?
+        ticket_hash["comments"] = comments_data
+        comments_count_msg = "[IncrementalTicketJob] Retrieved #{comments_data.size} comment(s) for ticket #{ticket_id}"
+        Rails.logger.debug comments_count_msg
+      end
+    rescue => e
+      error_msg = "[IncrementalTicketJob] Error fetching comments for ticket #{ticket_id}: #{e.message}"
+      Rails.logger.warn error_msg
+      puts error_msg
+      # Continue without comments rather than failing the entire job
+    end
+
+    ticket_hash
+  end
+
   def build_user_lookup(users_data)
     return {} unless users_data.is_a?(Array)
 
@@ -126,17 +167,13 @@ class IncrementalTicketJob < ApplicationJob
     ticket_hash = ticket_hash.dup if ticket_hash.is_a?(Hash)
 
     # Add requester data
-    if (req_id = ticket_hash["requester_id"] || ticket_hash[:requester_id])
-      if (requester = user_lookup[req_id])
-        ticket_hash["requester"] = requester
-      end
+    if (req_id = ticket_hash["requester_id"] || ticket_hash[:requester_id]) && (requester = user_lookup[req_id])
+      ticket_hash["requester"] = requester
     end
 
     # Add assignee data
-    if (assignee_id = ticket_hash["assignee_id"] || ticket_hash[:assignee_id])
-      if (assignee = user_lookup[assignee_id])
-        ticket_hash["assignee"] = assignee
-      end
+    if (assignee_id = ticket_hash["assignee_id"] || ticket_hash[:assignee_id]) && (assignee = user_lookup[assignee_id])
+      ticket_hash["assignee"] = assignee
     end
 
     ticket_hash
