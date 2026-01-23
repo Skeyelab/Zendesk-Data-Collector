@@ -3,7 +3,9 @@ require "test_helper"
 class DeviseAuthenticationTest < ActionDispatch::IntegrationTest
   setup do
     # Clear Rack::Attack cache before each test to prevent rate limiting
-    Rack::Attack.cache.store.clear if Rack::Attack.cache.respond_to?(:store)
+    if Rack::Attack.cache && Rack::Attack.cache.respond_to?(:store) && Rack::Attack.cache.store.respond_to?(:clear)
+      Rack::Attack.cache.store.clear
+    end
   end
 
   test "can sign in with valid credentials" do
