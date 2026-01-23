@@ -1,4 +1,7 @@
 class ZendeskTicket < ApplicationRecord
+  # Disable Rails automatic timestamps - we use Zendesk's timestamps directly
+  self.record_timestamps = false
+
   # Validations
   validates :zendesk_id, presence: true
   validates :domain, presence: true
@@ -83,8 +86,8 @@ class ZendeskTicket < ApplicationRecord
       "group_name" => :group_name,
       "organization_name" => :organization_name,
       "generated_timestamp" => :generated_timestamp,
-      "created_at" => ->(val) { parse_time_field(val, :zendesk_created_at) },
-      "updated_at" => ->(val) { parse_time_field(val, :zendesk_updated_at) },
+      "created_at" => ->(val) { parse_time_field(val, :created_at) },
+      "updated_at" => ->(val) { parse_time_field(val, :updated_at) },
       "assigned_at" => ->(val) { parse_time_field(val, :assigned_at) },
       "initially_assigned_at" => ->(val) { parse_time_field(val, :initially_assigned_at) },
       "solved_at" => ->(val) { parse_time_field(val, :solved_at) },

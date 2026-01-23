@@ -219,13 +219,13 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     ticket.assign_ticket_data(ticket_hash)
     ticket.save!
 
-    # Zendesk timestamps should be stored in dedicated columns
-    assert_not_nil ticket.zendesk_created_at
-    assert_not_nil ticket.zendesk_updated_at
-    assert_not_nil ticket.solved_at
-    # Rails timestamps should also be set (auto-managed)
+    # Timestamps come directly from Zendesk API
     assert_not_nil ticket.created_at
     assert_not_nil ticket.updated_at
+    assert_not_nil ticket.solved_at
+    # Verify they match the API values (within 1 second tolerance)
+    assert_in_delta now.to_i, ticket.created_at.to_i, 1
+    assert_in_delta now.to_i, ticket.updated_at.to_i, 1
   end
 
   test "should store complete raw data in JSONB" do
