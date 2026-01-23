@@ -113,6 +113,7 @@ GEM
       rack-test (>= 0.6.3)
       regexp_parser (>= 1.5, < 3.0)
       xpath (~> 3.2)
+    chartkick (5.2.1)
     coderay (1.1.3)
     concurrent-ruby (1.3.6)
     connection_pool (3.0.2)
@@ -121,10 +122,10 @@ GEM
       rexml
     crass (1.0.6)
     date (3.5.1)
-    devise (4.9.4)
+    devise (5.0.0)
       bcrypt (~> 3.0)
       orm_adapter (~> 0.1)
-      railties (>= 4.1.0)
+      railties (>= 7.0)
       responders
       warden (~> 1.2.3)
     diff-lcs (1.6.2)
@@ -365,7 +366,7 @@ GEM
     seed_dump (3.4.1)
       activerecord (>= 4)
       activesupport (>= 4)
-    selenium-webdriver (4.39.0)
+    selenium-webdriver (4.40.0)
       base64 (~> 0.2)
       logger (~> 1.4)
       rexml (~> 3.2, >= 3.2.5)
@@ -456,6 +457,7 @@ DEPENDENCIES
   avo (~> 3.0)
   byebug
   capybara
+  chartkick
   devise
   dotenv-rails
   foreman

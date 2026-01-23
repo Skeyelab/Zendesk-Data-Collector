@@ -482,4 +482,65 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
   end
+
+  test "should handle rate limiting (429) on comments API with Retry-After header" do
+    # Mock tickets response
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    # Mock comments API rate limit - first call returns 429, second succeeds
+    stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/comments.json")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        {
+          status: 429,
+          headers: {
+            "Retry-After" => "5"
+          }
+        },
+        {
+          status: 200,
+          body: {
+            comments: [
+              {
+                id: 1,
+                body: "Test comment",
+                created_at: "2024-01-01T10:00:00Z"
+              }
+            ]
+          }.to_json,
+          headers: {"Content-Type" => "application/json"}
+        }
+      )
+
+    # Should still create the ticket after retrying comments
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_nothing_raised do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+    end
+
+    @desk.reload
+    # wait_till should be set from the rate limit
+    # Note: wait_till may equal current_time if the job's sleep has completed,
+    # but it should be set (not nil or 0)
+    assert_not_nil @desk.wait_till, "wait_till should be set after rate limit"
+    assert @desk.wait_till > 0, "wait_till should be greater than 0"
+    # wait_till should be >= current_time (may be equal if sleep completed)
+    assert @desk.wait_till >= Time.now.to_i, "Expected wait_till (#{@desk.wait_till}) to be >= current time (#{Time.now.to_i})"
+
+    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    assert_not_nil ticket
+    assert_equal "Test Ticket", ticket.subject
+  end
 end

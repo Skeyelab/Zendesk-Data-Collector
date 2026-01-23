@@ -1,16 +1,12 @@
 class Rack::Attack
   # Throttle login attempts by IP
   throttle("logins/ip", limit: 5, period: 20.seconds) do |req|
-    if req.path == "/admin_users/sign_in" && req.post?
-      req.ip
-    end
+    req.ip if req.path == "/admin_users/sign_in" && req.post?
   end
 
   # Throttle login attempts by email
   throttle("logins/email", limit: 5, period: 60.seconds) do |req|
-    if req.path == "/admin_users/sign_in" && req.post?
-      req.params.dig("admin_user", "email")&.downcase&.strip
-    end
+    req.params.dig("admin_user", "email")&.downcase&.strip if req.path == "/admin_users/sign_in" && req.post?
   end
 
   # Block suspicious requests
