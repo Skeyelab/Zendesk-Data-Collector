@@ -73,10 +73,10 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
   end
 
   test "should handle missing ticket gracefully" do
-    FetchTicketCommentsJob.perform_now(99999, @desk.id, "test.zendesk.com")
-
     # Should not raise an error, just log a warning
-    assert_nothing_raised
+    assert_nothing_raised do
+      FetchTicketCommentsJob.perform_now(99999, @desk.id, "test.zendesk.com")
+    end
   end
 
   test "should handle API errors gracefully" do

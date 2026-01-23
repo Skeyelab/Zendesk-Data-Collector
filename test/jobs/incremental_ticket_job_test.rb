@@ -456,7 +456,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     # Should create the ticket and enqueue comment job
     # Rate limiting will be handled by FetchTicketCommentsJob
     assert_difference "ZendeskTicket.count", 1 do
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com") do
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
         assert_nothing_raised do
           IncrementalTicketJob.perform_now(@desk.id)
         end
