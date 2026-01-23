@@ -532,7 +532,12 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
 
     @desk.reload
     # wait_till should be set from the rate limit
-    assert @desk.wait_till > Time.now.to_i
+    # Note: wait_till may equal current_time if the job's sleep has completed,
+    # but it should be set (not nil or 0)
+    assert_not_nil @desk.wait_till, "wait_till should be set after rate limit"
+    assert @desk.wait_till > 0, "wait_till should be greater than 0"
+    # wait_till should be >= current_time (may be equal if sleep completed)
+    assert @desk.wait_till >= Time.now.to_i, "Expected wait_till (#{@desk.wait_till}) to be >= current time (#{Time.now.to_i})"
 
     ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
     assert_not_nil ticket

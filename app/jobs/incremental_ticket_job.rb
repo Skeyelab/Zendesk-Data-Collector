@@ -109,8 +109,9 @@ class IncrementalTicketJob < ApplicationJob
       Rails.logger.error backtrace_msg
       puts backtrace_msg
     ensure
-      desk.queued = false
-      desk.save
+      # Use update_all to set queued=false without affecting wait_till
+      Desk.where(id: desk.id).update_all(queued: false)
+      desk.reload
       complete_msg = "[IncrementalTicketJob] Job completed for desk #{desk.domain}, queued flag reset"
       Rails.logger.info complete_msg
       puts complete_msg
@@ -135,10 +136,24 @@ class IncrementalTicketJob < ApplicationJob
       response = client.connection.get("/api/v2/tickets/#{ticket_id}/comments.json")
 
       # Check for 429 rate limit error in response
-      if response.status == 429
-        handle_rate_limit_error(response, desk, ticket_id, retry_count, max_retries)
+      # Handle both response.status and response.env[:status] for different response structures
+      response_status = if response.respond_to?(:status)
+        response.status
+      elsif response.respond_to?(:env) && response.env && response.env[:status]
+        response.env[:status]
+      end
+
+      if response_status == 429
+        # For 429 responses, handle rate limiting
+        # This will set wait_till and handle retry logic
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count, max_retries)
         retry_count += 1
-        raise "Rate limit exceeded (429)" if retry_count <= max_retries
+        if retry_count <= max_retries
+          raise "Rate limit exceeded (429), retrying"
+        else
+          # Max retries reached, continue without comments
+          return ticket_hash
+        end
       end
 
       response_body = if response.body.is_a?(Hash)
@@ -156,14 +171,18 @@ class IncrementalTicketJob < ApplicationJob
       end
     rescue => e
       # Check if it's a rate limit error (429) from Faraday
-      is_rate_limit = e.message.include?("status 429") || e.message.include?("429")
-      response = extract_response_from_error(e) if is_rate_limit
+      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
 
       if is_rate_limit
-        handle_rate_limit_error(response, desk, ticket_id, retry_count, max_retries)
+        # Try to extract response from error, or use the error itself
+        response_from_error = extract_response_from_error(e)
+        handle_rate_limit_error(response_from_error || e, desk, ticket_id, retry_count, max_retries)
         retry_count += 1
         if retry_count <= max_retries
           retry
+        else
+          # Max retries reached, continue without comments
+          return ticket_hash
         end
       end
 
@@ -187,6 +206,18 @@ class IncrementalTicketJob < ApplicationJob
     if error.message.include?("status 429")
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
+
+      # For WebMock/Faraday, try to get response from exception's internal state
+      # Faraday::ClientError and similar exceptions may have @response or @env
+      if error.instance_variable_defined?(:@response)
+        response = error.instance_variable_get(:@response)
+        return response if response
+      end
+
+      if error.instance_variable_defined?(:@env)
+        env = error.instance_variable_get(:@env)
+        return env if env
+      end
     end
 
     nil
@@ -197,13 +228,15 @@ class IncrementalTicketJob < ApplicationJob
     # Use the Retry-After value directly from Zendesk, with minimal additional backoff
     wait_seconds = retry_after + retry_count # Small incremental backoff per retry
 
-    # Update desk wait_till timestamp
-    desk.wait_till = wait_seconds + Time.now.to_i
-    begin
-      desk.save!
-    rescue => e
-      Rails.logger.error("[IncrementalTicketJob] Failed to persist rate limit data for Desk ##{desk.id}: #{e.class}: #{e.message}")
-    end
+    # Ensure wait_seconds is at least 1 to guarantee wait_till is in the future
+    wait_seconds = [wait_seconds, 1].max
+
+    # Update desk wait_till timestamp - recalculate current_time right before update to ensure it's in the future
+    new_wait_till = wait_seconds + Time.now.to_i
+
+    # Always update wait_till - use update_all to ensure it's persisted even if there are validation issues
+    Desk.where(id: desk.id).update_all(wait_till: new_wait_till)
+    desk.reload
 
     rate_limit_msg = "[IncrementalTicketJob] Rate limit (429) for ticket #{ticket_id}, waiting #{wait_seconds}s (Retry-After: #{retry_after}s, retry #{retry_count + 1}/#{max_retries})"
     Rails.logger.warn rate_limit_msg
@@ -216,17 +249,68 @@ class IncrementalTicketJob < ApplicationJob
   def extract_retry_after(response_or_env)
     return 10 unless response_or_env
 
-    # Handle Faraday response object (most common case)
+    # Try to get headers from various possible locations
+    headers = nil
+
+    # First, try accessing response.env (Faraday stores response data in env)
+    if response_or_env.respond_to?(:env) && response_or_env.env
+      env = response_or_env.env
+      # Check response_headers in env hash (Faraday's standard location)
+      if env[:response_headers]
+        headers = env[:response_headers]
+        # Try all possible header key formats (case-insensitive)
+        retry_after_header = headers["Retry-After"] ||
+          headers[:Retry_After] ||
+          headers["retry-after"] ||
+          headers[:retry_after] ||
+          headers["RETRY-AFTER"] ||
+          headers[:RETRY_AFTER]
+        if retry_after_header
+          retry_after = retry_after_header.to_i
+          return retry_after if retry_after > 0
+        end
+      end
+      # Also check headers directly in env
+      if env[:headers]
+        headers = env[:headers]
+        retry_after_header = headers["Retry-After"] ||
+          headers[:Retry_After] ||
+          headers["retry-after"] ||
+          headers[:retry_after]
+        if retry_after_header
+          retry_after = retry_after_header.to_i
+          return retry_after if retry_after > 0
+        end
+      end
+    end
+
+    # Handle Faraday response object headers (most common case)
     if response_or_env.respond_to?(:headers)
       headers = response_or_env.headers || {}
-      # Try all possible header key formats
-      retry_after_header = headers["retry-after"] || 
-                          headers[:retry_after] || 
-                          headers["Retry-After"] ||
-                          headers[:Retry_After]
-      if retry_after_header
-        retry_after = retry_after_header.to_i
-        return retry_after if retry_after > 0
+
+      # Try accessing via get method first (Faraday::Utils::Headers supports this, case-insensitive)
+      if headers.respond_to?(:get)
+        retry_after_header = headers.get("Retry-After") ||
+          headers.get("retry-after") ||
+          headers.get(:retry_after)
+        if retry_after_header
+          retry_after = retry_after_header.to_i
+          return retry_after if retry_after > 0
+        end
+      end
+
+      # Try direct hash access with various key formats
+      if headers.is_a?(Hash) || headers.respond_to?(:[])
+        retry_after_header = headers["Retry-After"] ||
+          headers[:Retry_After] ||
+          headers["retry-after"] ||
+          headers[:retry_after] ||
+          headers["RETRY-AFTER"] ||
+          headers[:RETRY_AFTER]
+        if retry_after_header
+          retry_after = retry_after_header.to_i
+          return retry_after if retry_after > 0
+        end
       end
     end
 
@@ -235,10 +319,10 @@ class IncrementalTicketJob < ApplicationJob
       # Check response_headers in env hash
       if response_or_env[:response_headers]
         headers = response_or_env[:response_headers]
-        retry_after_header = headers[:retry_after] || 
-                            headers["retry-after"] ||
-                            headers["Retry-After"] ||
-                            headers[:Retry_After]
+        retry_after_header = headers[:retry_after] ||
+          headers["retry-after"] ||
+          headers["Retry-After"] ||
+          headers[:Retry_After]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -248,10 +332,10 @@ class IncrementalTicketJob < ApplicationJob
       # Also check direct header access in env
       if response_or_env[:headers]
         headers = response_or_env[:headers]
-        retry_after_header = headers["retry-after"] || 
-                            headers[:retry_after] || 
-                            headers["Retry-After"] ||
-                            headers[:Retry_After]
+        retry_after_header = headers["retry-after"] ||
+          headers[:retry_after] ||
+          headers["Retry-After"] ||
+          headers[:Retry_After]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
