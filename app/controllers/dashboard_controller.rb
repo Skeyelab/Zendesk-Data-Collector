@@ -41,12 +41,44 @@ class DashboardController < ApplicationController
       end
     end
 
-    @avg_resolution_time = avg_resolution&.round(1)
-    @has_resolution_data = !@avg_resolution_time.nil?
+    if avg_resolution
+      total_minutes = avg_resolution.round
+      hours = total_minutes / 60
+      minutes = total_minutes % 60
+
+      @avg_resolution_hours = hours
+      @avg_resolution_minutes = minutes
+      @avg_resolution_time_formatted = if hours > 0
+        "#{hours}h #{minutes}m"
+      else
+        "#{minutes}m"
+      end
+    else
+      @avg_resolution_hours = nil
+      @avg_resolution_minutes = nil
+      @avg_resolution_time_formatted = nil
+    end
+
+    @has_resolution_data = !@avg_resolution_time_formatted.nil?
 
     @tickets_by_status = ZendeskTicket
       .where.not(status: nil)
       .group(:status)
       .count
+
+    @tickets_by_priority = ZendeskTicket
+      .where.not(priority: nil)
+      .group(:priority)
+      .count
+
+    # Tickets over time - group by date and format as date strings
+    tickets_by_date = ZendeskTicket
+      .where.not(created_at: nil)
+      .group("DATE(created_at)")
+      .order("DATE(created_at) ASC")
+      .count
+
+    # Format dates as YYYY-MM-DD strings for Chartkick
+    @tickets_over_time = tickets_by_date.transform_keys { |date| date.strftime("%Y-%m-%d") }
   end
 end

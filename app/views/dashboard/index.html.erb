@@ -117,8 +117,8 @@
     <div class="metric-card">
       <h3 class="metric-label">Avg Resolution Time</h3>
       <% if @has_resolution_data %>
-        <p class="metric-value"><%= @avg_resolution_time %> min</p>
-        <p class="metric-description">Average resolution time in minutes</p>
+        <p class="metric-value"><%= @avg_resolution_time_formatted %></p>
+        <p class="metric-description">Average resolution time</p>
       <% else %>
         <p class="metric-value" style="color: #999;">N/A</p>
         <p class="metric-description">No resolution time data available</p>
@@ -126,12 +126,32 @@
     </div>
   </div>
 
-  <div class="chart-card">
-    <h3 class="chart-title">Tickets by Status</h3>
-    <% if @tickets_by_status.present? && @tickets_by_status.any? %>
-      <%= pie_chart @tickets_by_status, height: "300px", library: { plugins: { legend: { position: "right" } } } %>
+  <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+    <div class="chart-card">
+      <h3 class="chart-title">Tickets by Status</h3>
+      <% if @tickets_by_status.present? && @tickets_by_status.any? %>
+        <%= pie_chart @tickets_by_status, height: "300px", library: { plugins: { legend: { position: "right" } } } %>
+      <% else %>
+        <p style="color: #999; text-align: center; padding: 2rem;">No ticket data available</p>
+      <% end %>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">Tickets by Priority</h3>
+      <% if @tickets_by_priority.present? && @tickets_by_priority.any? %>
+        <%= bar_chart @tickets_by_priority, height: "300px", library: { plugins: { legend: { display: false } } } %>
+      <% else %>
+        <p style="color: #999; text-align: center; padding: 2rem;">No priority data available</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-top: 1.5rem;">
+    <h3 class="chart-title">Tickets Over Time</h3>
+    <% if @tickets_over_time.present? && @tickets_over_time.any? %>
+      <%= line_chart @tickets_over_time, height: "300px", discrete: true, library: { plugins: { legend: { display: false }, tooltip: { mode: "index", intersect: false } }, scales: { x: { ticks: { maxRotation: 45, minRotation: 45, maxTicksLimit: 20 } } } } %>
     <% else %>
-      <p style="color: #999; text-align: center; padding: 2rem;">No ticket data available</p>
+      <p style="color: #999; text-align: center; padding: 2rem;">No time series data available</p>
     <% end %>
   </div>
 </div>
