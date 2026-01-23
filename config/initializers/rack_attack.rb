@@ -23,7 +23,7 @@ class Rack::Attack
   self.throttled_responder = lambda do |req|
     [
       429,
-      { "Content-Type" => "text/plain" },
+      {"Content-Type" => "text/plain"},
       ["Rate limit exceeded. Please retry later.\n"]
     ]
   end
