@@ -10,14 +10,14 @@ class RackAttackTest < ActionDispatch::IntegrationTest
     # Make 5 login attempts (the limit)
     5.times do
       post admin_user_session_path, params: {
-        admin_user: { email: "test@example.com", password: "wrong" }
+        admin_user: {email: "test@example.com", password: "wrong"}
       }
       assert_response :success # Should still allow the requests
     end
 
     # The 6th attempt should be throttled
     post admin_user_session_path, params: {
-      admin_user: { email: "test@example.com", password: "wrong" }
+      admin_user: {email: "test@example.com", password: "wrong"}
     }
     assert_response :too_many_requests
     assert_match(/Rate limit exceeded/, response.body)
@@ -27,14 +27,14 @@ class RackAttackTest < ActionDispatch::IntegrationTest
     # Make 5 login attempts with same email (the limit)
     5.times do
       post admin_user_session_path, params: {
-        admin_user: { email: "specific@example.com", password: "wrong" }
+        admin_user: {email: "specific@example.com", password: "wrong"}
       }
       assert_response :success # Should still allow the requests
     end
 
     # The 6th attempt with same email should be throttled
     post admin_user_session_path, params: {
-      admin_user: { email: "specific@example.com", password: "wrong" }
+      admin_user: {email: "specific@example.com", password: "wrong"}
     }
     assert_response :too_many_requests
     assert_match(/Rate limit exceeded/, response.body)
