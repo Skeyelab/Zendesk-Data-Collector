@@ -1,4 +1,7 @@
 class ZendeskTicket < ApplicationRecord
+  # Disable Rails automatic timestamps - we use Zendesk's timestamps directly
+  self.record_timestamps = false
+
   # Validations
   validates :zendesk_id, presence: true
   validates :domain, presence: true

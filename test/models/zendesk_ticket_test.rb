@@ -207,20 +207,25 @@ class ZendeskTicketTest < ActiveSupport::TestCase
   end
 
   test "should parse time fields from strings" do
+    now = Time.now
     ticket_hash = {
       "id" => 700,
       "domain" => "test.zendesk.com",
-      "created_at" => Time.now.iso8601,
-      "updated_at" => Time.now.iso8601,
-      "solved_at" => Time.now.iso8601
+      "created_at" => now.iso8601,
+      "updated_at" => now.iso8601,
+      "solved_at" => now.iso8601
     }
     ticket = ZendeskTicket.new
     ticket.assign_ticket_data(ticket_hash)
     ticket.save!
 
+    # Timestamps come directly from Zendesk API
     assert_not_nil ticket.created_at
     assert_not_nil ticket.updated_at
     assert_not_nil ticket.solved_at
+    # Verify they match the API values (within 1 second tolerance)
+    assert_in_delta now.to_i, ticket.created_at.to_i, 1
+    assert_in_delta now.to_i, ticket.updated_at.to_i, 1
   end
 
   test "should store complete raw data in JSONB" do
