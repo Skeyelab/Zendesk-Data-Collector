@@ -2,6 +2,9 @@ class ZendeskTicket < ApplicationRecord
   # Disable Rails automatic timestamps - we use Zendesk's timestamps directly
   self.record_timestamps = false
 
+  # Set default timestamps if not provided (e.g., in tests or manual creation)
+  before_validation :set_default_timestamps
+
   # Validations
   validates :zendesk_id, presence: true
   validates :domain, presence: true
@@ -134,6 +137,12 @@ class ZendeskTicket < ApplicationRecord
   end
 
   private
+
+  def set_default_timestamps
+    now = Time.current
+    self.created_at ||= now
+    self.updated_at ||= now
+  end
 
   def extract_requester_fields(requester)
     return unless requester.is_a?(Hash)
