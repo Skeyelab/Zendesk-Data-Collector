@@ -10,25 +10,34 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
   end
 
   self.search = {
-    query: ->(params:, query:) do
+    query: -> do
       search_term = params[:q]
       return query if search_term.blank?
 
-      # Build ransack conditions
-      conditions = {
-        subject_cont: search_term,
-        domain_cont: search_term,
-        req_name_cont: search_term,
-        req_email_cont: search_term,
-        assignee_name_cont: search_term
-      }
-
-      # If search term is a number, also search by zendesk_id
+      # If search term is a number, prioritize zendesk_id search
       if search_term.to_i.to_s == search_term
-        conditions[:zendesk_id_eq] = search_term.to_i
+        zendesk_id_value = search_term.to_i
+        # Search by zendesk_id (exact match) and also include text fields
+        query.ransack(
+          zendesk_id_eq: zendesk_id_value,
+          subject_cont: search_term,
+          domain_cont: search_term,
+          req_name_cont: search_term,
+          req_email_cont: search_term,
+          assignee_name_cont: search_term,
+          m: "or"
+        ).result(distinct: true)
+      else
+        # For non-numeric searches, search text fields only
+        query.ransack(
+          subject_cont: search_term,
+          domain_cont: search_term,
+          req_name_cont: search_term,
+          req_email_cont: search_term,
+          assignee_name_cont: search_term,
+          m: "or"
+        ).result(distinct: true)
       end
-
-      query.ransack(conditions.merge(m: "or")).result(distinct: true)
     end
   }
 
