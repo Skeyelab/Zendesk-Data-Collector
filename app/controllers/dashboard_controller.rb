@@ -2,16 +2,26 @@ class DashboardController < ApplicationController
   before_action :authenticate_admin_user!
 
   def index
-    @total_tickets = ZendeskTicket.count
+    # Get excluded statuses from URL parameters
+    @excluded_statuses = Array(params[:exclude_statuses]).compact.reject(&:blank?)
+    # Filter out invalid status values
+    valid_statuses = %w[new open pending solved closed]
+    @excluded_statuses = @excluded_statuses.select { |s| valid_statuses.include?(s.to_s) }
+
+    # Create base scope with filters applied
+    base_scope = ZendeskTicket.all
+    base_scope = base_scope.where.not(status: @excluded_statuses) if @excluded_statuses.any?
+
+    @total_tickets = base_scope.count
     @active_desks = Desk.where(active: true).count
     # Try multiple resolution time fields, fallback to calculating from timestamps
-    avg_resolution = ZendeskTicket
+    avg_resolution = base_scope
       .where.not(first_resolution_time_in_minutes: nil)
       .average(:first_resolution_time_in_minutes)
 
     if avg_resolution.nil?
       # Fallback to full_resolution_time_in_minutes
-      avg_resolution = ZendeskTicket
+      avg_resolution = base_scope
         .where.not(full_resolution_time_in_minutes: nil)
         .average(:full_resolution_time_in_minutes)
     end
@@ -19,7 +29,7 @@ class DashboardController < ApplicationController
     if avg_resolution.nil?
       # Calculate from solved/closed tickets using updated_at as proxy for resolution time
       # Note: This is approximate since incremental API doesn't include metric fields
-      solved_tickets = ZendeskTicket
+      solved_tickets = base_scope
         .where(status: ["solved", "closed"])
         .where.not(created_at: nil)
         .where.not(updated_at: nil)
@@ -61,18 +71,18 @@ class DashboardController < ApplicationController
 
     @has_resolution_data = !@avg_resolution_time_formatted.nil?
 
-    @tickets_by_status = ZendeskTicket
+    @tickets_by_status = base_scope
       .where.not(status: nil)
       .group(:status)
       .count
 
-    @tickets_by_priority = ZendeskTicket
+    @tickets_by_priority = base_scope
       .where.not(priority: nil)
       .group(:priority)
       .count
 
     # Tickets over time - group by date and format as date strings
-    tickets_by_date = ZendeskTicket
+    tickets_by_date = base_scope
       .where.not(created_at: nil)
       .group("DATE(created_at)")
       .order("DATE(created_at) ASC")

@@ -80,6 +80,57 @@
     margin: 0 0 1.5rem 0;
   }
   
+  .filter-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+  }
+  
+  .filter-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 1rem 0;
+  }
+  
+  .filter-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .filter-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .filter-checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+  
+  .filter-checkbox-item label {
+    font-size: 0.875rem;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .filter-badge {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+  }
+  
   @media (max-width: 768px) {
     .dashboard-container {
       padding: 1rem;
@@ -99,6 +150,30 @@
   <div class="dashboard-header">
     <h1 class="dashboard-title">Zendesk Metrics</h1>
     <p class="dashboard-subtitle">Overview of Zendesk tickets and desks</p>
+  </div>
+
+  <div class="filter-section">
+    <h3 class="filter-title">
+      Filter by Status
+      <% if @excluded_statuses.any? %>
+        <span class="filter-badge"><%= @excluded_statuses.count %> excluded</span>
+      <% end %>
+    </h3>
+    <div class="filter-checkboxes">
+      <% %w[new open pending solved closed].each do |status| %>
+        <div class="filter-checkbox-item">
+          <input 
+            type="checkbox" 
+            id="filter_<%= status %>" 
+            name="exclude_statuses[]" 
+            value="<%= status %>"
+            <%= 'checked' if @excluded_statuses.include?(status) %>
+            onchange="updateFilters()"
+          >
+          <label for="filter_<%= status %>"><%= status.capitalize %></label>
+        </div>
+      <% end %>
+    </div>
   </div>
 
   <div class="metrics-grid">
@@ -155,3 +230,33 @@
     <% end %>
   </div>
 </div>
+
+<script>
+  function updateFilters() {
+    const checkboxes = document.querySelectorAll('input[name="exclude_statuses[]"]');
+    const excludedStatuses = Array.from(checkboxes)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+    
+    const url = new URL(window.location.href);
+    const baseUrl = url.origin + url.pathname;
+    
+    // Build query string manually to handle array parameters correctly for Rails
+    // Rails expects: exclude_statuses[]=value1&exclude_statuses[]=value2
+    const params = [];
+    excludedStatuses.forEach(status => {
+      params.push('exclude_statuses[]=' + encodeURIComponent(status));
+    });
+    
+    // Construct the full URL
+    const newUrl = params.length > 0 
+      ? baseUrl + '?' + params.join('&')
+      : baseUrl;
+    
+    // Debug log (remove in production)
+    console.log('Filtering with statuses:', excludedStatuses);
+    console.log('Navigating to:', newUrl);
+    
+    window.location.href = newUrl;
+  }
+</script>
