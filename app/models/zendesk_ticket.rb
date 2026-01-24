@@ -13,6 +13,11 @@ class ZendeskTicket < ApplicationRecord
   scope :for_domain, ->(domain) { where(domain: domain) }
   scope :recent, -> { order(generated_timestamp: :desc) }
 
+  # Ransack configuration for Avo search
+  def self.ransackable_attributes(auth_object = nil)
+    %w[zendesk_id domain subject status priority ticket_type req_name req_email req_id assignee_name assignee_id group_name group_id organization_name]
+  end
+
   # Access dynamic fields from raw_data
   # This allows accessing any field that might be in the JSONB column
   def method_missing(method, *args, &block)

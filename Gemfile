@@ -26,6 +26,7 @@ gem "mission_control-jobs"
 
 # Admin interface
 gem "avo", "~> 3.0"
+gem "ransack"
 gem "chartkick"
 
 # Authentication

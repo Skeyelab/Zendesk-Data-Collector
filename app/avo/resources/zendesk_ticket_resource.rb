@@ -9,6 +9,29 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     }
   end
 
+  self.search = {
+    query: ->(params:, query:) do
+      search_term = params[:q]
+      return query if search_term.blank?
+
+      # Build ransack conditions
+      conditions = {
+        subject_cont: search_term,
+        domain_cont: search_term,
+        req_name_cont: search_term,
+        req_email_cont: search_term,
+        assignee_name_cont: search_term
+      }
+
+      # If search term is a number, also search by zendesk_id
+      if search_term.to_i.to_s == search_term
+        conditions[:zendesk_id_eq] = search_term.to_i
+      end
+
+      query.ransack(conditions.merge(m: "or")).result(distinct: true)
+    end
+  }
+
   def fields
     field :id, as: :id
     field :zendesk_id, as: :number, required: true, sortable: true
