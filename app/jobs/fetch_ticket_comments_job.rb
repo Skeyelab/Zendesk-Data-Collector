@@ -15,12 +15,21 @@ class FetchTicketCommentsJob < ApplicationJob
       return
     end
 
+    # Check if desk is rate-limited (wait_till is in the future)
+    current_time = Time.now.to_i
+    if desk.wait_till && desk.wait_till > current_time
+      wait_seconds = desk.wait_till - current_time
+      wait_msg = "[FetchTicketCommentsJob] Desk #{desk.domain} is rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
+      Rails.logger.info wait_msg
+      puts wait_msg
+      sleep(wait_seconds)
+      desk.reload # Reload in case wait_till was updated
+    end
+
     # Throttle: Add a small delay before making API call to avoid rate limits
     # This helps prevent hitting Zendesk's rate limits when many comment jobs run in parallel
     sleep_duration = ENV.fetch("COMMENT_JOB_DELAY_SECONDS", "0.5").to_f
-    if sleep_duration > 0
-      sleep(sleep_duration)
-    end
+    sleep(sleep_duration) if sleep_duration > 0
 
     client = ZendeskClientService.connect(desk)
     max_retries = 3
@@ -45,32 +54,32 @@ class FetchTicketCommentsJob < ApplicationJob
       # Check for 429 rate limit error in response
       # Handle both response.status and response.env[:status] for different response structures
       response_status = if response.respond_to?(:status)
-                          response.status
-                        elsif response.respond_to?(:env) && response.env && response.env[:status]
-                          response.env[:status]
-                        end
+        response.status
+      elsif response.respond_to?(:env) && response.env && response.env[:status]
+        response.env[:status]
+      end
 
       if response_status == 429
         # For 429 responses, handle rate limiting
         # This will set wait_till and handle retry logic
-        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count, max_retries)
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count,
+          max_retries)
         retry_count += 1
-        if retry_count <= max_retries
-          raise "Rate limit exceeded (429), retrying"
-        else
-          # Max retries reached, log and exit gracefully
-          error_msg = "[FetchTicketCommentsJob] Max retries reached for ticket #{ticket_id}, skipping comments"
-          Rails.logger.warn error_msg
-          puts error_msg
-          return
-        end
+        raise "Rate limit exceeded (429), retrying" if retry_count <= max_retries
+
+        # Max retries reached, log and exit gracefully
+        error_msg = "[FetchTicketCommentsJob] Max retries reached for ticket #{ticket_id}, skipping comments"
+        Rails.logger.warn error_msg
+        puts error_msg
+        return
+
       end
 
       response_body = if response.body.is_a?(Hash)
-                        response.body
-                      else
-                        JSON.parse(response.body)
-                      end
+        response.body
+      else
+        JSON.parse(response.body)
+      end
 
       comments_data = response_body["comments"] || []
 

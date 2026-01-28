@@ -25,6 +25,8 @@ class DeskTest < ActiveSupport::TestCase
     assert_equal 0, desk.wait_till_event
     assert_equal false, desk.active
     assert_equal false, desk.queued
+    assert_equal true, desk.fetch_comments
+    assert_equal true, desk.fetch_metrics
   end
 
   test "should not override persisted default values" do

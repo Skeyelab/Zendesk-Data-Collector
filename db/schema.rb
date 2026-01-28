@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_23_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_27_230758) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -49,6 +49,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_23_000000) do
     t.boolean "active"
     t.datetime "created_at", null: false
     t.string "domain"
+    t.boolean "fetch_comments", default: true, null: false
+    t.boolean "fetch_metrics", default: true, null: false
     t.integer "last_timestamp"
     t.integer "last_timestamp_event"
     t.boolean "queued"

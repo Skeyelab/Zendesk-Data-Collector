@@ -35,5 +35,7 @@ class Desk < ApplicationRecord
     self.wait_till_event ||= 0
     self.active ||= false
     self.queued ||= false
+    self.fetch_comments = true if fetch_comments.nil?
+    self.fetch_metrics = true if fetch_metrics.nil?
   end
 end

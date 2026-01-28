@@ -73,15 +73,27 @@ class IncrementalTicketJob < ApplicationJob
           errors += 1
         end
 
-        # Enqueue comment fetch job with a small delay to throttle API calls
-        # This helps prevent rate limiting by staggering comment job execution
+        # Enqueue comment and metrics fetch jobs with a small delay to throttle API calls
+        # This helps prevent rate limiting by staggering job execution
         ticket_id = enriched_ticket["id"] || enriched_ticket[:id]
         if ticket_id
-          # Add a small delay to stagger comment jobs and reduce API call rate
+          # Add a small delay to stagger jobs and reduce API call rate
           # Delay is based on ticket position to spread out execution over time
           stagger_seconds = ENV.fetch("COMMENT_JOB_STAGGER_SECONDS", "0.2").to_f
           delay_seconds = (processed * stagger_seconds) % 5.0 # Cycle every 5 seconds max
-          FetchTicketCommentsJob.set(wait: delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
+
+          # Enqueue comment job if fetch_comments is enabled
+          if desk.fetch_comments
+            FetchTicketCommentsJob.set(wait: delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
+          end
+
+          # Enqueue metrics fetch job with a slight additional delay after comments
+          # This ensures metrics jobs run after comments but still with proper staggering
+          if desk.fetch_metrics
+            metrics_stagger_seconds = ENV.fetch("METRICS_JOB_STAGGER_SECONDS", "0.2").to_f
+            metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % 5.0
+            FetchTicketMetricsJob.set(wait: metrics_delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
+          end
         end
 
         # Log progress every 10 tickets
