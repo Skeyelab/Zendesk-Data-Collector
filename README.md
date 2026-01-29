@@ -161,7 +161,7 @@ docker-compose -f docker-compose.local.yml run web rails console
 docker-compose -f docker-compose.local.yml run web bundle exec standardrb
 ```
 
-Note: There is no `docker-compose.local.yml` file in the repository yet. For local development, use the `-coolify.yml` file with appropriate environment variables.
+Note: There is no `docker-compose.local.yml` file in the repository yet. For local development, use the `docker-compose-coolify.yml` file with appropriate environment variables.
 
 ### Running Tests
 
