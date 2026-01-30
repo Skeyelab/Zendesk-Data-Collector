@@ -9,7 +9,7 @@ module ZendeskRateLimitHandler
 
     wait_seconds = desk.wait_till - current_time
     Rails.logger.info "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
-    sleep(wait_seconds)
+    sleep(wait_seconds) unless Rails.env.test?
     desk.reload
   end
 
@@ -26,7 +26,7 @@ module ZendeskRateLimitHandler
 
     wait_seconds = info[:reset] + 1
     Rails.logger.info "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset"
-    sleep(wait_seconds)
+    sleep(wait_seconds) unless Rails.env.test?
   end
 
   private
@@ -171,7 +171,7 @@ module ZendeskRateLimitHandler
     puts rate_limit_msg
 
     # Wait before retrying
-    sleep(wait_seconds)
+    sleep(wait_seconds) unless Rails.env.test?
   end
 
   def extract_retry_after(response_or_env)

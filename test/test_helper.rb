@@ -1,4 +1,6 @@
 ENV["RAILS_ENV"] ||= "test"
+ENV["METRICS_JOB_DELAY_SECONDS"] = "0"
+ENV["COMMENT_JOB_DELAY_SECONDS"] = "0"
 
 require "simplecov"
 
@@ -7,16 +9,16 @@ SimpleCov.start "rails" do
   add_filter "/test/"
   add_filter "/config/"
   # Filter out unused skeleton files that Rails generates
-  add_filter "/app/channels/"  # ActionCable not used
-  add_filter "/app/mailers/application_mailer.rb"  # No emails sent
-  add_filter "/app/controllers/avo/desk_resources_controller.rb"  # Empty routing shim
+  add_filter "/app/channels/" # ActionCable not used
+  add_filter "/app/mailers/application_mailer.rb" # No emails sent
+  add_filter "/app/controllers/avo/desk_resources_controller.rb" # Empty routing shim
 end
 require_relative "../config/environment"
 require "rails/test_help"
 require "capybara/rails"
 require "capybara/minitest"
 
-# Note: Avo base classes (MetricCard, ChartkickCard, BaseDashboard) are only available
+# NOTE: Avo base classes (MetricCard, ChartkickCard, BaseDashboard) are only available
 # when the Avo engine is fully initialized at runtime. In tests, we skip loading
 # our custom Avo classes to avoid NameError. The classes will work correctly
 # when the application runs normally.

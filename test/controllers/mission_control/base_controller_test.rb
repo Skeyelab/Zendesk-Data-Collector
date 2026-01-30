@@ -14,14 +14,7 @@ class MissionControl::BaseControllerTest < ActionDispatch::IntegrationTest
       password: "password123",
       password_confirmation: "password123"
     )
-
-    post admin_user_session_path, params: {
-      admin_user: {
-        email: admin_user.email,
-        password: "password123"
-      }
-    }
-    follow_redirect! if response.redirect?
+    sign_in admin_user
 
     get "/jobs"
     assert_response :success
