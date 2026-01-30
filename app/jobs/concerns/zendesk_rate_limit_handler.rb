@@ -1,6 +1,31 @@
 module ZendeskRateLimitHandler
   extend ActiveSupport::Concern
 
+  # Wait before making API requests if desk is in a rate-limit window.
+  # See: https://developer.zendesk.com/documentation/api-basics/best-practices/best-practices-for-avoiding-rate-limiting/
+  def wait_if_rate_limited(desk)
+    current_time = Time.now.to_i
+    return unless desk.wait_till && desk.wait_till > current_time
+
+    wait_seconds = desk.wait_till - current_time
+    Rails.logger.info "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
+    sleep(wait_seconds)
+    desk.reload
+  end
+
+  # When rate limit remaining is low, back off until reset to avoid 429.
+  # See: https://developer.zendesk.com/documentation/api-basics/best-practices/best-practices-for-avoiding-rate-limiting/
+  def throttle_using_rate_limit_headers(response_or_env, job_name = self.class.name)
+    info = log_rate_limit_headers(response_or_env, job_name)
+    return unless info
+    return unless info[:percentage] && info[:percentage] < 20
+    return unless info[:reset]&.positive?
+
+    wait_seconds = info[:reset] + 1
+    Rails.logger.info "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining), backing off #{wait_seconds}s until reset"
+    sleep(wait_seconds)
+  end
+
   private
 
   # Extract and log rate limit information from response headers
@@ -17,45 +42,45 @@ module ZendeskRateLimitHandler
       %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
     rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
 
-    if rate_limit && rate_limit_remaining
-      rate_limit = rate_limit.to_i
-      rate_limit_remaining = rate_limit_remaining.to_i
-      percentage_remaining = (rate_limit_remaining.to_f / rate_limit.to_f * 100).round(1)
+    return unless rate_limit && rate_limit_remaining
 
-      # Log rate limit status
-      rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
-      rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
+    rate_limit = rate_limit.to_i
+    rate_limit_remaining = rate_limit_remaining.to_i
+    percentage_remaining = (rate_limit_remaining.to_f / rate_limit.to_f * 100).round(1)
 
-      # Warn if we're getting low on requests
-      if percentage_remaining < 10
-        Rails.logger.warn rate_limit_msg
-        puts rate_limit_msg
-      elsif percentage_remaining < 25
-        Rails.logger.info rate_limit_msg
-      else
-        Rails.logger.debug rate_limit_msg
-      end
+    # Log rate limit status
+    rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
+    rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-      # Return rate limit info for potential dynamic throttling
-      {
-        limit: rate_limit,
-        remaining: rate_limit_remaining,
-        reset: rate_limit_reset&.to_i,
-        percentage: percentage_remaining
-      }
+    # Warn if we're getting low on requests
+    if percentage_remaining < 10
+      Rails.logger.warn rate_limit_msg
+      puts rate_limit_msg
+    elsif percentage_remaining < 25
+      Rails.logger.info rate_limit_msg
+    else
+      Rails.logger.debug rate_limit_msg
     end
+
+    # Return rate limit info for potential dynamic throttling
+    {
+      limit: rate_limit,
+      remaining: rate_limit_remaining,
+      reset: rate_limit_reset&.to_i,
+      percentage: percentage_remaining
+    }
   end
 
   def extract_headers(response_or_env)
     # Try accessing response.env (Faraday stores response data in env)
     if response_or_env.respond_to?(:env) && response_or_env.env
       env = response_or_env.env
-      return env[:response_headers] if env[:response_headers]
-      return env[:headers] if env[:headers]
+      return env[:response_headers] if env[:response_headers].present?
+      return env[:headers] if env[:headers].present?
     end
 
-    # Handle Faraday response object headers
-    return response_or_env.headers if response_or_env.respond_to?(:headers)
+    # Handle Faraday response object headers (e.g. from WebMock)
+    return response_or_env.headers if response_or_env.respond_to?(:headers) && response_or_env.headers.present?
 
     # Handle ZendeskAPI callback env hash
     if response_or_env.is_a?(Hash)

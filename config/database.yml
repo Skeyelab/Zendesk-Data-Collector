@@ -19,7 +19,8 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see rails configuration guide
   # http://guides.rubyonrails.org/configuring.html#database-pooling
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Pool must be >= Solid Queue worker threads (config/queue.yml); default 7.
+  pool: <%= ENV.fetch("DATABASE_POOL") { 7 } %>
   # Disable GSS encryption to prevent pg gem segfaults on macOS
   gssencmode: disable
 

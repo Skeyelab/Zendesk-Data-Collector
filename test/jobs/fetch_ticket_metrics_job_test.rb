@@ -13,12 +13,12 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
     )
 
     @ticket = ZendeskTicket.create!(
-      zendesk_id: 12345,
+      zendesk_id: 12_345,
       domain: "test.zendesk.com",
       subject: "Test Ticket",
       status: "open",
       raw_data: {
-        "id" => 12345,
+        "id" => 12_345,
         "subject" => "Test Ticket",
         "status" => "open"
       }
@@ -33,6 +33,45 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
         body: {ticket_metric: metrics_data}.to_json,
         headers: {"Content-Type" => "application/json"}
       )
+  end
+
+  test "waits when desk wait_till is in the future (wait_if_rate_limited)" do
+    @desk.update_column(:wait_till, Time.now.to_i + 1)
+    stub_metrics_api(12_345, {reopens: 0})
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
+    assert elapsed >= 0.9, "Expected job to wait ~1s when wait_till in future, elapsed=#{elapsed}s"
+  end
+
+  test "does not wait for rate limit when desk wait_till is in the past" do
+    @desk.update_columns(wait_till: 0)
+    stub_metrics_api(12_345, {reopens: 0})
+    t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
+    # Throttle (0.5s) + API; no multi-second wait from wait_till
+    assert elapsed < 3, "Job should complete without long rate-limit wait, elapsed=#{elapsed}s"
+  end
+
+  test "throttle_using_rate_limit_headers runs when rate limit headers show low remaining" do
+    stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/metrics.json")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {ticket_metric: {reopens: 0}}.to_json,
+        headers: {
+          "Content-Type" => "application/json",
+          "X-Rate-Limit" => "700",
+          "X-Rate-Limit-Remaining" => "70",
+          "ratelimit-reset" => "1"
+        }
+      )
+    assert_nothing_raised do
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
+    @ticket.reload
+    assert @ticket.raw_data["metrics"] || @ticket.reopens.present?, "Job should complete and update ticket"
   end
 
   test "should fetch and update ticket metrics" do
@@ -77,9 +116,9 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       group_stations: 3
     }
 
-    stub_metrics_api(12345, metrics_data)
+    stub_metrics_api(12_345, metrics_data)
 
-    FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     assert_not_nil @ticket.raw_data["metrics"]
@@ -119,9 +158,9 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       }
     }
 
-    stub_metrics_api(12345, metrics_data)
+    stub_metrics_api(12_345, metrics_data)
 
-    FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Calendar value goes to main column
@@ -135,15 +174,15 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
   test "should handle missing ticket gracefully" do
     # Should not raise an error, just log a warning
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(99999, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(99_999, @desk.id, "test.zendesk.com")
     end
   end
 
   test "should handle API errors gracefully" do
-    stub_metrics_api(12345, {}, status: 500)
+    stub_metrics_api(12_345, {}, status: 500)
 
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -180,7 +219,7 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       )
 
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @desk.reload
@@ -197,10 +236,10 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
   end
 
   test "should handle empty metrics response" do
-    stub_metrics_api(12345, {})
+    stub_metrics_api(12_345, {})
 
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -211,7 +250,7 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
   test "should preserve existing raw_data when updating metrics" do
     # Set some existing data in raw_data
     @ticket.update_columns(raw_data: {
-      "id" => 12345,
+      "id" => 12_345,
       "subject" => "Test Ticket",
       "status" => "open",
       "priority" => "high",
@@ -226,9 +265,9 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       reopens: 1
     }
 
-    stub_metrics_api(12345, metrics_data)
+    stub_metrics_api(12_345, metrics_data)
 
-    FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Should preserve existing fields
@@ -252,7 +291,7 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       )
 
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -266,7 +305,7 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       .to_raise(StandardError.new("Network error"))
 
     assert_nothing_raised do
-      FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -283,13 +322,13 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       reopens: 1,
       replies: 2,
       reply_time_in_seconds: {
-        calendar: 30000
+        calendar: 30_000
       }
     }
 
-    stub_metrics_api(12345, metrics_data)
+    stub_metrics_api(12_345, metrics_data)
 
-    FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Full metrics should be stored in raw_data
@@ -310,9 +349,9 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
       group_stations: 4
     }
 
-    stub_metrics_api(12345, metrics_data)
+    stub_metrics_api(12_345, metrics_data)
 
-    FetchTicketMetricsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Count fields are stored as strings in the schema

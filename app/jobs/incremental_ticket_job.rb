@@ -1,11 +1,15 @@
 class IncrementalTicketJob < ApplicationJob
   include ZendeskRateLimitHandler
 
+  class RateLimitRetry < StandardError; end
+
   queue_as :default
   queue_with_priority 0 # Highest priority - process incremental jobs first
 
   def perform(desk_id)
     desk = Desk.find(desk_id)
+    wait_if_rate_limited(desk)
+
     msg = "[IncrementalTicketJob] Starting for desk #{desk.domain} (ID: #{desk_id})"
     Rails.logger.info msg
     puts msg
@@ -18,9 +22,11 @@ class IncrementalTicketJob < ApplicationJob
 
     client = ZendeskClientService.connect(desk)
     start_time = desk.last_timestamp
+    max_retries = 3
+    retry_count = 0
 
     begin
-      fetch_msg = "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time})"
+      fetch_msg = "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})"
       Rails.logger.info fetch_msg
       puts fetch_msg
 
@@ -30,8 +36,22 @@ class IncrementalTicketJob < ApplicationJob
         req.params[:include] = "users"
       end
 
-      # Monitor rate limit headers to track remaining requests
-      log_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
+      # Monitor rate limit and back off when remaining is low (best practice: regulate request rate)
+      throttle_using_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
+
+      # Handle 429: wait Retry-After then retry (best practice)
+      response_status = response.respond_to?(:status) ? response.status : (response.env && response.env[:status])
+      if response_status == 429
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, "incremental", retry_count,
+          max_retries)
+        retry_count += 1
+        if retry_count <= max_retries
+          Rails.logger.info "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})"
+          raise RateLimitRetry
+        end
+        Rails.logger.warn "[IncrementalTicketJob] Max retries reached after 429, exiting"
+        return
+      end
 
       # Handle response body (may be already parsed by JSON middleware or a string)
       response_body = if response.body.is_a?(Hash)
@@ -92,7 +112,8 @@ class IncrementalTicketJob < ApplicationJob
           if desk.fetch_metrics
             metrics_stagger_seconds = ENV.fetch("METRICS_JOB_STAGGER_SECONDS", "0.2").to_f
             metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % 5.0
-            FetchTicketMetricsJob.set(wait: metrics_delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
+            FetchTicketMetricsJob.set(wait: metrics_delay_seconds.seconds).perform_later(ticket_id, desk.id,
+              desk.domain)
           end
         end
 
@@ -123,7 +144,22 @@ class IncrementalTicketJob < ApplicationJob
           puts no_update_msg
         end
       end
+    rescue RateLimitRetry
+      retry
     rescue => e
+      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
+      if is_rate_limit
+        response_from_error = extract_response_from_error(e)
+        handle_rate_limit_error(response_from_error || e, desk, "incremental", retry_count, max_retries)
+        retry_count += 1
+        if retry_count <= max_retries
+          Rails.logger.info "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})"
+          retry
+        end
+        Rails.logger.warn "[IncrementalTicketJob] Max retries reached after 429, exiting"
+        return
+      end
+
       error_msg = "[IncrementalTicketJob] Error processing tickets for desk #{desk_id}: #{e.message}"
       Rails.logger.error error_msg
       puts error_msg
