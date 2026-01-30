@@ -1,4 +1,5 @@
 # Tracks incremental export API requests to enforce Zendesk limit (10/min, 30 with High Volume).
+# Default cap (10/min) leaves headroom for other API consumers (UI, scripts, integrations).
 # See: https://developer.zendesk.com/api-reference/introduction/rate-limits/
 class IncrementalExportRequest < ApplicationRecord
   def self.count_in_last_minute
