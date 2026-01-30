@@ -19,7 +19,8 @@ module ZendeskRateLimitHandler
   def throttle_using_rate_limit_headers(response_or_env, job_name = self.class.name)
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
@@ -41,8 +42,8 @@ module ZendeskRateLimitHandler
     # Standard rate limit headers
     rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
     rate_limit_remaining = extract_header_value(headers,
-      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
-    rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
+                                                %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
+    rate_limit_reset = extract_header_value(headers, ['ratelimit-reset'])
 
     return unless rate_limit && rate_limit_remaining
 
@@ -54,7 +55,7 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
     # Warn if we're getting low on requests (below half of headroom)
     if percentage_remaining < (headroom_percent / 2)
       Rails.logger.warn rate_limit_msg
@@ -130,7 +131,7 @@ module ZendeskRateLimitHandler
     return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
 
     # Check if error message indicates 429
-    if error.message.include?("status 429")
+    if error.message.include?('status 429')
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
 
@@ -186,12 +187,12 @@ module ZendeskRateLimitHandler
       if env[:response_headers]
         headers = env[:response_headers]
         # Try all possible header key formats (case-insensitive)
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
+        retry_after_header = headers['Retry-After'] ||
+                             headers[:Retry_After] ||
+                             headers['retry-after'] ||
+                             headers[:retry_after] ||
+                             headers['RETRY-AFTER'] ||
+                             headers[:RETRY_AFTER]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -200,10 +201,10 @@ module ZendeskRateLimitHandler
       # Also check headers directly in env
       if env[:headers]
         headers = env[:headers]
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after]
+        retry_after_header = headers['Retry-After'] ||
+                             headers[:Retry_After] ||
+                             headers['retry-after'] ||
+                             headers[:retry_after]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -217,9 +218,9 @@ module ZendeskRateLimitHandler
 
       # Try accessing via get method first (Faraday::Utils::Headers supports this, case-insensitive)
       if headers.respond_to?(:get)
-        retry_after_header = headers.get("Retry-After") ||
-          headers.get("retry-after") ||
-          headers.get(:retry_after)
+        retry_after_header = headers.get('Retry-After') ||
+                             headers.get('retry-after') ||
+                             headers.get(:retry_after)
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -228,12 +229,12 @@ module ZendeskRateLimitHandler
 
       # Try direct hash access with various key formats
       if headers.is_a?(Hash) || headers.respond_to?(:[])
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
+        retry_after_header = headers['Retry-After'] ||
+                             headers[:Retry_After] ||
+                             headers['retry-after'] ||
+                             headers[:retry_after] ||
+                             headers['RETRY-AFTER'] ||
+                             headers[:RETRY_AFTER]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -247,9 +248,9 @@ module ZendeskRateLimitHandler
       if response_or_env[:response_headers]
         headers = response_or_env[:response_headers]
         retry_after_header = headers[:retry_after] ||
-          headers["retry-after"] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
+                             headers['retry-after'] ||
+                             headers['Retry-After'] ||
+                             headers[:Retry_After]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
@@ -259,10 +260,10 @@ module ZendeskRateLimitHandler
       # Also check direct header access in env
       if response_or_env[:headers]
         headers = response_or_env[:headers]
-        retry_after_header = headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
+        retry_after_header = headers['retry-after'] ||
+                             headers[:retry_after] ||
+                             headers['Retry-After'] ||
+                             headers[:Retry_After]
         if retry_after_header
           retry_after = retry_after_header.to_i
           return retry_after if retry_after > 0
