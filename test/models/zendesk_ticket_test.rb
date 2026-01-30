@@ -243,4 +243,197 @@ class ZendeskTicketTest < ActiveSupport::TestCase
     assert_equal "value1", ticket.raw_data["custom_field_1"]
     assert_equal({"nested" => "value"}, ticket.raw_data["custom_field_2"])
   end
+
+  test "assign_metrics_data should extract nested time metrics correctly" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 900,
+      domain: "test.zendesk.com"
+    )
+
+    metrics_data = {
+      "reply_time_in_minutes" => {
+        "business" => 100,
+        "calendar" => 500
+      },
+      "first_resolution_time_in_minutes" => {
+        "business" => 200,
+        "calendar" => 800
+      },
+      "full_resolution_time_in_minutes" => {
+        "business" => 300,
+        "calendar" => 1000
+      },
+      "agent_wait_time_in_minutes" => {
+        "business" => 50,
+        "calendar" => 200
+      },
+      "requester_wait_time_in_minutes" => {
+        "business" => 150,
+        "calendar" => 400
+      },
+      "on_hold_time_in_minutes" => {
+        "business" => 25,
+        "calendar" => 100
+      }
+    }
+
+    ticket.assign_metrics_data(metrics_data)
+    ticket.save!
+
+    # Calendar values go to main columns
+    assert_equal 500, ticket.first_reply_time_in_minutes
+    assert_equal 800, ticket.first_resolution_time_in_minutes
+    assert_equal 1000, ticket.full_resolution_time_in_minutes
+    assert_equal 200, ticket.agent_wait_time_in_minutes
+    assert_equal 400, ticket.requester_wait_time_in_minutes
+    assert_equal 100, ticket.on_hold_time_in_minutes
+
+    # Business values go to _within_business_hours columns
+    assert_equal 100, ticket.first_reply_time_in_minutes_within_business_hours
+    assert_equal 200, ticket.first_resolution_time_in_minutes_within_business_hours
+    assert_equal 300, ticket.full_resolution_time_in_minutes_within_business_hours
+    assert_equal 50, ticket.agent_wait_time_in_minutes_within_business_hours
+    assert_equal 150, ticket.requester_wait_time_in_minutes_within_business_hours
+    assert_equal 25, ticket.on_hold_time_in_minutes_within_business_hours
+  end
+
+  test "assign_metrics_data should parse timestamp fields from ISO8601 strings" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 901,
+      domain: "test.zendesk.com"
+    )
+
+    assigned_time = Time.parse("2011-05-05T10:38:52Z")
+    solved_time = Time.parse("2011-05-09T10:38:52Z")
+
+    metrics_data = {
+      "assigned_at" => "2011-05-05T10:38:52Z",
+      "solved_at" => "2011-05-09T10:38:52Z",
+      "status_updated_at" => "2011-05-04T10:38:52Z",
+      "latest_comment_added_at" => "2011-05-09T10:38:52Z",
+      "requester_updated_at" => "2011-05-07T10:38:52Z",
+      "assignee_updated_at" => "2011-05-06T10:38:52Z",
+      "custom_status_updated_at" => "2011-05-09T10:38:52Z",
+      "initially_assigned_at" => "2011-05-03T10:38:52Z"
+    }
+
+    ticket.assign_metrics_data(metrics_data)
+    ticket.save!
+
+    assert_not_nil ticket.assigned_at
+    assert_not_nil ticket.solved_at
+    assert_not_nil ticket.initially_assigned_at
+
+    # Verify timestamps are parsed correctly (within 1 second tolerance)
+    assert_in_delta assigned_time.to_i, ticket.assigned_at.to_i, 1
+    assert_in_delta solved_time.to_i, ticket.solved_at.to_i, 1
+
+    # These columns may not exist if migration was rolled back - just verify no crash
+  end
+
+  test "assign_metrics_data should store count fields as strings" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 902,
+      domain: "test.zendesk.com"
+    )
+
+    metrics_data = {
+      "reopens" => 5,
+      "replies" => 10,
+      "assignee_stations" => 2,
+      "group_stations" => 4
+    }
+
+    ticket.assign_metrics_data(metrics_data)
+    ticket.save!
+
+    # Schema has these as strings
+    assert_equal "5", ticket.reopens
+    assert_equal "10", ticket.replies
+    assert_equal "2", ticket.assignee_stations
+    assert_equal "4", ticket.group_stations
+
+    # Verify they are strings (schema constraint)
+    assert_instance_of String, ticket.reopens
+    assert_instance_of String, ticket.replies
+    assert_instance_of String, ticket.assignee_stations
+    assert_instance_of String, ticket.group_stations
+  end
+
+  test "assign_metrics_data should preserve full metrics in raw_data" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 903,
+      domain: "test.zendesk.com"
+    )
+
+    metrics_data = {
+      "reply_time_in_minutes" => {
+        "business" => 100,
+        "calendar" => 500
+      },
+      "reopens" => 2,
+      "replies" => 3,
+      "reply_time_in_seconds" => {
+        "calendar" => 30000
+      }
+    }
+
+    ticket.assign_metrics_data(metrics_data)
+    ticket.save!
+
+    # Full metrics should be stored in raw_data
+    assert_not_nil ticket.raw_data["metrics"]
+    assert_equal 500, ticket.raw_data["metrics"]["reply_time_in_minutes"]["calendar"]
+    assert_equal 100, ticket.raw_data["metrics"]["reply_time_in_minutes"]["business"]
+    assert_equal 2, ticket.raw_data["metrics"]["reopens"]
+    assert_equal 3, ticket.raw_data["metrics"]["replies"]
+    assert_not_nil ticket.raw_data["metrics"]["reply_time_in_seconds"]
+  end
+
+  test "assign_metrics_data should handle missing/null values gracefully" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 904,
+      domain: "test.zendesk.com"
+    )
+
+    metrics_data = {
+      "reply_time_in_minutes" => nil,
+      "reopens" => nil,
+      "assigned_at" => nil
+    }
+
+    assert_nothing_raised do
+      ticket.assign_metrics_data(metrics_data)
+      ticket.save!
+    end
+
+    # Should not crash, values may remain nil
+    assert_not_nil ticket
+  end
+
+  test "assign_metrics_data should store reply_time_in_seconds only in raw_data" do
+    ticket = ZendeskTicket.create!(
+      zendesk_id: 905,
+      domain: "test.zendesk.com"
+    )
+
+    metrics_data = {
+      "reply_time_in_seconds" => {
+        "calendar" => 30000
+      }
+    }
+
+    ticket.assign_metrics_data(metrics_data)
+    ticket.save!
+
+    # reply_time_in_seconds should be in raw_data but not extracted to columns
+    assert_not_nil ticket.raw_data["metrics"]["reply_time_in_seconds"]
+    assert_equal 30000, ticket.raw_data["metrics"]["reply_time_in_seconds"]["calendar"]
+    # Should not have a column for this
+    begin
+      assert_nil ticket.read_attribute(:reply_time_in_seconds)
+    rescue
+      nil
+    end
+  end
 end

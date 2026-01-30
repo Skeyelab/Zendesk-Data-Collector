@@ -141,6 +141,43 @@ class ZendeskTicket < ApplicationRecord
     self.raw_data = ticket_hash.deep_stringify_keys
   end
 
+  # Store ticket metrics data, extracting nested time metrics and timestamp fields
+  def assign_metrics_data(metrics_hash)
+    return unless metrics_hash.is_a?(Hash)
+
+    metrics_hash = metrics_hash.deep_stringify_keys
+
+    # Extract nested time metrics (business/calendar hours)
+    extract_nested_time_metric(metrics_hash, "reply_time_in_minutes", "first_reply_time_in_minutes")
+    extract_nested_time_metric(metrics_hash, "first_resolution_time_in_minutes", "first_resolution_time_in_minutes")
+    extract_nested_time_metric(metrics_hash, "full_resolution_time_in_minutes", "full_resolution_time_in_minutes")
+    extract_nested_time_metric(metrics_hash, "agent_wait_time_in_minutes", "agent_wait_time_in_minutes")
+    extract_nested_time_metric(metrics_hash, "requester_wait_time_in_minutes", "requester_wait_time_in_minutes")
+    extract_nested_time_metric(metrics_hash, "on_hold_time_in_minutes", "on_hold_time_in_minutes")
+
+    # Parse timestamp fields (only set if column exists)
+    parse_time_field(metrics_hash["assigned_at"], :assigned_at)
+    parse_time_field(metrics_hash["solved_at"], :solved_at)
+    parse_time_field(metrics_hash["initially_assigned_at"], :initially_assigned_at)
+    # Only parse these if columns exist (they may have been removed)
+    parse_time_field(metrics_hash["status_updated_at"], :status_updated_at) if respond_to?(:status_updated_at=)
+    parse_time_field(metrics_hash["latest_comment_added_at"], :latest_comment_added_at) if respond_to?(:latest_comment_added_at=)
+    parse_time_field(metrics_hash["requester_updated_at"], :requester_updated_at) if respond_to?(:requester_updated_at=)
+    parse_time_field(metrics_hash["assignee_updated_at"], :assignee_updated_at) if respond_to?(:assignee_updated_at=)
+    parse_time_field(metrics_hash["custom_status_updated_at"], :custom_status_updated_at) if respond_to?(:custom_status_updated_at=)
+    parse_time_field(metrics_hash["created_at"], :created_at)
+    parse_time_field(metrics_hash["updated_at"], :updated_at)
+
+    # Store count fields (schema has them as strings, so convert to string)
+    self.reopens = metrics_hash["reopens"].to_s if metrics_hash.key?("reopens") && metrics_hash["reopens"]
+    self.replies = metrics_hash["replies"].to_s if metrics_hash.key?("replies") && metrics_hash["replies"]
+    self.assignee_stations = metrics_hash["assignee_stations"].to_s if metrics_hash.key?("assignee_stations") && metrics_hash["assignee_stations"]
+    self.group_stations = metrics_hash["group_stations"].to_s if metrics_hash.key?("group_stations") && metrics_hash["group_stations"]
+
+    # Store full metrics in raw_data
+    self.raw_data = (raw_data || {}).merge("metrics" => metrics_hash.deep_stringify_keys)
+  end
+
   private
 
   def set_default_timestamps
@@ -196,5 +233,18 @@ class ZendeskTicket < ApplicationRecord
 
     self[attribute] = parsed_time if attribute && parsed_time
     parsed_time
+  end
+
+  def extract_nested_time_metric(metrics_hash, api_key, column_base_name)
+    time_metric = metrics_hash[api_key]
+    return unless time_metric.is_a?(Hash)
+
+    # Extract calendar value to main column
+    calendar_value = time_metric["calendar"] || time_metric[:calendar]
+    self[column_base_name.to_s] = calendar_value.to_i if calendar_value
+
+    # Extract business value to _within_business_hours column
+    business_value = time_metric["business"] || time_metric[:business]
+    self["#{column_base_name}_within_business_hours"] = business_value.to_i if business_value
   end
 end

@@ -10,7 +10,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
   end
 
   self.search = {
-    query: -> do
+    query: lambda {
       search_term = params[:q]
       return query if search_term.blank?
 
@@ -38,7 +38,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
           m: "or"
         ).result(distinct: true)
       end
-    end
+    }
   }
 
   def fields
@@ -98,7 +98,8 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :via, as: :text
     field :satisfaction_score, as: :text, sortable: true
 
-    # JSONB raw_data - show as JSON viewer for complete API response
-    field :raw_data, as: :code, readonly: true, language: :json
+    # JSONB raw_data - show as pretty JSON (value is a Hash from jsonb deserialization)
+    field :raw_data, as: :code, readonly: true, language: :json,
+      format_using: -> { value.is_a?(Hash) ? JSON.pretty_generate(value) : value.to_s }
   end
 end

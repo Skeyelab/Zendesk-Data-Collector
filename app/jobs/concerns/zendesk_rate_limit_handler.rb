@@ -12,8 +12,9 @@ module ZendeskRateLimitHandler
     return unless headers
 
     # Standard rate limit headers
-    rate_limit = extract_header_value(headers, ["X-Rate-Limit", "x-rate-limit", "ratelimit-limit"])
-    rate_limit_remaining = extract_header_value(headers, ["X-Rate-Limit-Remaining", "x-rate-limit-remaining", "ratelimit-remaining"])
+    rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
+    rate_limit_remaining = extract_header_value(headers,
+      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
     rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
 
     if rate_limit && rate_limit_remaining
@@ -23,9 +24,7 @@ module ZendeskRateLimitHandler
 
       # Log rate limit status
       rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
-      if rate_limit_reset
-        rate_limit_msg += " (resets in #{rate_limit_reset}s)"
-      end
+      rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
       # Warn if we're getting low on requests
       if percentage_remaining < 10
@@ -44,8 +43,6 @@ module ZendeskRateLimitHandler
         reset: rate_limit_reset&.to_i,
         percentage: percentage_remaining
       }
-    else
-      nil
     end
   end
 
@@ -58,9 +55,7 @@ module ZendeskRateLimitHandler
     end
 
     # Handle Faraday response object headers
-    if response_or_env.respond_to?(:headers)
-      return response_or_env.headers
-    end
+    return response_or_env.headers if response_or_env.respond_to?(:headers)
 
     # Handle ZendeskAPI callback env hash
     if response_or_env.is_a?(Hash)
@@ -88,6 +83,7 @@ module ZendeskRateLimitHandler
         # Try string key
         value = headers[key] || headers[key.to_s]
         return value if value
+
         # Try symbol key
         symbol_key = key.underscore.to_sym
         value = headers[symbol_key] || headers[symbol_key.to_s]

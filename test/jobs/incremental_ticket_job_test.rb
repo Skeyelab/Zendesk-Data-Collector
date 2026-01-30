@@ -467,4 +467,132 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
   end
+
+  test "should enqueue FetchTicketMetricsJob for each ticket" do
+    # Mock tickets response
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+    end
+
+    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    assert_not_nil ticket
+    # Metrics should not be in raw_data yet (they'll be added by the async job)
+    assert_nil ticket.raw_data["metrics"]
+  end
+
+  test "should enqueue both comment and metrics jobs for each ticket" do
+    # Mock tickets response
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_jobs 2 do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"])
+    end
+  end
+
+  test "should not enqueue comment job when fetch_comments is false" do
+    @desk.update!(fetch_comments: false)
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_jobs 1 do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      # Verify comment job was not enqueued by checking job count
+      assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count
+    end
+  end
+
+  test "should not enqueue metrics job when fetch_metrics is false" do
+    @desk.update!(fetch_metrics: false)
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_jobs 1 do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      # Verify metrics job was not enqueued by checking job count
+      assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count
+    end
+  end
+
+  test "should not enqueue either job when both flags are false" do
+    @desk.update!(fetch_comments: false, fetch_metrics: false)
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_jobs 0 do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+      # Verify no jobs were enqueued
+      assert_equal 0, ActiveJob::Base.queue_adapter.enqueued_jobs.count
+    end
+  end
 end
