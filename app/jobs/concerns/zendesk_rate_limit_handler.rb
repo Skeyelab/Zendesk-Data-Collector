@@ -14,15 +14,17 @@ module ZendeskRateLimitHandler
   end
 
   # When rate limit remaining is low, back off until reset to avoid 429.
+  # Uses headroom threshold so we leave capacity for other API consumers (scripts, UI, integrations).
   # See: https://developer.zendesk.com/documentation/api-basics/best-practices/best-practices-for-avoiding-rate-limiting/
   def throttle_using_rate_limit_headers(response_or_env, job_name = self.class.name)
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
-    return unless info[:percentage] && info[:percentage] < 20
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
     wait_seconds = info[:reset] + 1
-    Rails.logger.info "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining), backing off #{wait_seconds}s until reset"
+    Rails.logger.info "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset"
     sleep(wait_seconds)
   end
 
@@ -52,11 +54,12 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    # Warn if we're getting low on requests
-    if percentage_remaining < 10
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    # Warn if we're getting low on requests (below half of headroom)
+    if percentage_remaining < (headroom_percent / 2)
       Rails.logger.warn rate_limit_msg
       puts rate_limit_msg
-    elsif percentage_remaining < 25
+    elsif percentage_remaining < (headroom_percent + 5)
       Rails.logger.info rate_limit_msg
     else
       Rails.logger.debug rate_limit_msg
