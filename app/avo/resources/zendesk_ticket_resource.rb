@@ -25,7 +25,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
           req_name_cont: search_term,
           req_email_cont: search_term,
           assignee_name_cont: search_term,
-          m: 'or'
+          m: "or"
         ).result(distinct: true)
       else
         # For non-numeric searches, search text fields only
@@ -35,7 +35,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
           req_name_cont: search_term,
           req_email_cont: search_term,
           assignee_name_cont: search_term,
-          m: 'or'
+          m: "or"
         ).result(distinct: true)
       end
     }
@@ -47,17 +47,17 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :domain, as: :text, required: true, sortable: true
     field :subject, as: :text, sortable: true
     field :status, as: :select, options: {
-      new: 'new',
-      open: 'open',
-      pending: 'pending',
-      solved: 'solved',
-      closed: 'closed'
+      new: "new",
+      open: "open",
+      pending: "pending",
+      solved: "solved",
+      closed: "closed"
     }, sortable: true
     field :priority, as: :select, options: {
-      urgent: 'urgent',
-      high: 'high',
-      normal: 'normal',
-      low: 'low'
+      urgent: "urgent",
+      high: "high",
+      normal: "normal",
+      low: "low"
     }, sortable: true
     field :ticket_type, as: :text, sortable: true
     field :url, as: :text
@@ -100,6 +100,6 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
 
     # JSONB raw_data - show as pretty JSON (value is a Hash from jsonb deserialization)
     field :raw_data, as: :code, readonly: true, language: :json,
-                     format_using: -> { value.is_a?(Hash) ? JSON.pretty_generate(value) : value.to_s }
+      format_using: -> { value.is_a?(Hash) ? JSON.pretty_generate(value) : value.to_s }
   end
 end
