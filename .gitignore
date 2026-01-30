@@ -42,3 +42,6 @@ bower.json
 .byebug_history
 # Cursor IDE files
 .cursor/
+
+# Claude-mem / AI session context (auto-generated)
+**/CLAUDE.md

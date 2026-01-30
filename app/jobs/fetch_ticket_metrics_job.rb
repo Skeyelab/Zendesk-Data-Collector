@@ -15,16 +15,7 @@ class FetchTicketMetricsJob < ApplicationJob
       return
     end
 
-    # Check if desk is rate-limited (wait_till is in the future)
-    current_time = Time.now.to_i
-    if desk.wait_till && desk.wait_till > current_time
-      wait_seconds = desk.wait_till - current_time
-      wait_msg = "[FetchTicketMetricsJob] Desk #{desk.domain} is rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
-      Rails.logger.info wait_msg
-      puts wait_msg
-      sleep(wait_seconds)
-      desk.reload # Reload in case wait_till was updated
-    end
+    wait_if_rate_limited(desk)
 
     # Throttle: Add a small delay before making API call to avoid rate limits
     # This helps prevent hitting Zendesk's rate limits when many metrics jobs run in parallel
@@ -47,20 +38,8 @@ class FetchTicketMetricsJob < ApplicationJob
 
       response = client.connection.get("/api/v2/tickets/#{ticket_id}/metrics.json")
 
-      # Monitor rate limit headers to track remaining requests
-      rate_limit_info = log_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
-
-      # Dynamically adjust delay based on remaining rate limit
-      if rate_limit_info && rate_limit_info[:percentage] < 20
-        # If we're below 20% remaining, add extra delay to slow down
-        extra_delay = (20 - rate_limit_info[:percentage]) * 0.1 # Up to 2 seconds extra delay
-        if extra_delay > 0
-          extra_delay_msg = "[FetchTicketMetricsJob] Rate limit low (#{rate_limit_info[:percentage]}% remaining), adding extra delay: #{extra_delay.round(2)}s"
-          Rails.logger.info extra_delay_msg
-          puts extra_delay_msg
-          sleep(extra_delay)
-        end
-      end
+      # Monitor rate limit and back off when remaining is low (best practice: regulate request rate)
+      throttle_using_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
 
       # Check for 429 rate limit error in response
       # Handle both response.status and response.env[:status] for different response structures
@@ -77,7 +56,8 @@ class FetchTicketMetricsJob < ApplicationJob
         puts rate_limit_msg
 
         # This will set wait_till and handle retry logic
-        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count, max_retries)
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, ticket_id, retry_count,
+          max_retries)
         retry_count += 1
         if retry_count <= max_retries
           retry_msg = "[FetchTicketMetricsJob] Retrying ticket #{ticket_id} (attempt #{retry_count + 1}/#{max_retries + 1})"
@@ -113,9 +93,15 @@ class FetchTicketMetricsJob < ApplicationJob
 
         # Log key metrics that were extracted
         extracted_metrics = []
-        extracted_metrics << "first_reply_time: #{ticket.first_reply_time_in_minutes}min" if ticket.first_reply_time_in_minutes
-        extracted_metrics << "first_resolution_time: #{ticket.first_resolution_time_in_minutes}min" if ticket.first_resolution_time_in_minutes
-        extracted_metrics << "full_resolution_time: #{ticket.full_resolution_time_in_minutes}min" if ticket.full_resolution_time_in_minutes
+        if ticket.first_reply_time_in_minutes
+          extracted_metrics << "first_reply_time: #{ticket.first_reply_time_in_minutes}min"
+        end
+        if ticket.first_resolution_time_in_minutes
+          extracted_metrics << "first_resolution_time: #{ticket.first_resolution_time_in_minutes}min"
+        end
+        if ticket.full_resolution_time_in_minutes
+          extracted_metrics << "full_resolution_time: #{ticket.full_resolution_time_in_minutes}min"
+        end
         extracted_metrics << "reopens: #{ticket.reopens}" if ticket.reopens
         extracted_metrics << "replies: #{ticket.replies}" if ticket.replies
         if extracted_metrics.any?

@@ -14,7 +14,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
 
     # Sample Zendesk ticket data
     @ticket_data = {
-      id: 12345,
+      id: 12_345,
       subject: "Test Ticket",
       status: "open",
       priority: "normal",
@@ -59,7 +59,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       IncrementalTicketJob.perform_now(@desk.id)
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
     assert_equal "open", ticket.status
@@ -70,7 +70,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should update existing ticket in PostgreSQL" do
     # Create existing ticket
     ZendeskTicket.create!(
-      zendesk_id: 12345,
+      zendesk_id: 12_345,
       domain: "test.zendesk.com",
       subject: "Old Subject",
       status: "open"
@@ -101,7 +101,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       IncrementalTicketJob.perform_now(@desk.id)
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_equal "Updated Subject", ticket.subject
     assert_equal "solved", ticket.status
   end
@@ -133,9 +133,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 429,
-        headers: {
-          "Retry-After" => "60"
-        }
+        headers: {"Retry-After" => "1"}
       )
 
     assert_no_difference "ZendeskTicket.count" do
@@ -143,7 +141,32 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     end
 
     @desk.reload
-    assert @desk.wait_till > Time.now.to_i
+    # wait_till is set by handle_rate_limit_error; after retries we may have slept past it
+    assert @desk.wait_till.present? && @desk.wait_till > 0, "Desk should have wait_till set after 429"
+  end
+
+  test "should retry on 429 then succeed and process tickets" do
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        {status: 429, headers: {"Retry-After" => "1"}},
+        {
+          status: 200,
+          body: {
+            tickets: [@ticket_data],
+            users: [],
+            end_time: 2000,
+            count: 1
+          }.to_json,
+          headers: {"Content-Type" => "application/json"}
+        }
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      IncrementalTicketJob.perform_now(@desk.id)
+    end
+    @desk.reload
+    assert_equal 2000, @desk.last_timestamp
   end
 
   test "should set desk queued to false after completion" do
@@ -316,7 +339,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       end
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     # Invalid timestamps should be handled gracefully (stored as-is if parsing fails)
     # The actual behavior may vary, so we just ensure the ticket was saved
@@ -326,27 +349,27 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should extract requester email from sideloaded users" do
     # Ticket with requester_id only (not nested requester object)
     ticket_data = {
-      id: 12345,
+      id: 12_345,
       subject: "Test Ticket",
       status: "open",
       priority: "normal",
       created_at: Time.now.iso8601,
       updated_at: Time.now.iso8601,
       generated_timestamp: Time.now.to_i,
-      requester_id: 98765,
-      assignee_id: 54321
+      requester_id: 98_765,
+      assignee_id: 54_321
     }
 
     # Sideloaded users array
     users_data = [
       {
-        id: 98765,
+        id: 98_765,
         name: "John Doe",
         email: "john@example.com",
         external_id: "ext_123"
       },
       {
-        id: 54321,
+        id: 54_321,
         name: "Jane Smith",
         email: "jane@example.com"
       }
@@ -371,15 +394,15 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       IncrementalTicketJob.perform_now(@desk.id)
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
     assert_equal "John Doe", ticket.req_name
     assert_equal "john@example.com", ticket.req_email
-    assert_equal 98765, ticket.req_id
+    assert_equal 98_765, ticket.req_id
     assert_equal "ext_123", ticket.req_external_id
     assert_equal "Jane Smith", ticket.assignee_name
-    assert_equal 54321, ticket.assignee_id
+    assert_equal 54_321, ticket.assignee_id
   end
 
   test "should enqueue FetchTicketCommentsJob for each ticket" do
@@ -398,12 +421,12 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       )
 
     assert_difference "ZendeskTicket.count", 1 do
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"]) do
         IncrementalTicketJob.perform_now(@desk.id)
       end
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     # Comments should not be in raw_data yet (they'll be added by the async job)
     assert_nil ticket.raw_data["comments"]
@@ -426,14 +449,14 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
 
     # Should still create the ticket and enqueue comment job
     assert_difference "ZendeskTicket.count", 1 do
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"]) do
         assert_nothing_raised do
           IncrementalTicketJob.perform_now(@desk.id)
         end
       end
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
   end
@@ -456,14 +479,14 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     # Should create the ticket and enqueue comment job
     # Rate limiting will be handled by FetchTicketCommentsJob
     assert_difference "ZendeskTicket.count", 1 do
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"]) do
         assert_nothing_raised do
           IncrementalTicketJob.perform_now(@desk.id)
         end
       end
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     assert_equal "Test Ticket", ticket.subject
   end
@@ -484,12 +507,12 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       )
 
     assert_difference "ZendeskTicket.count", 1 do
-      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"]) do
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"]) do
         IncrementalTicketJob.perform_now(@desk.id)
       end
     end
 
-    ticket = ZendeskTicket.find_by(zendesk_id: 12345, domain: "test.zendesk.com")
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
     assert_not_nil ticket
     # Metrics should not be in raw_data yet (they'll be added by the async job)
     assert_nil ticket.raw_data["metrics"]
@@ -514,8 +537,8 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       assert_enqueued_jobs 2 do
         IncrementalTicketJob.perform_now(@desk.id)
       end
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"])
-      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"])
     end
   end
 
@@ -539,7 +562,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       assert_enqueued_jobs 1 do
         IncrementalTicketJob.perform_now(@desk.id)
       end
-      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"])
       # Verify comment job was not enqueued by checking job count
       assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count
     end
@@ -565,7 +588,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       assert_enqueued_jobs 1 do
         IncrementalTicketJob.perform_now(@desk.id)
       end
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"])
       # Verify metrics job was not enqueued by checking job count
       assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count
     end

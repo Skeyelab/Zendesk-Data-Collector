@@ -15,16 +15,7 @@ class FetchTicketCommentsJob < ApplicationJob
       return
     end
 
-    # Check if desk is rate-limited (wait_till is in the future)
-    current_time = Time.now.to_i
-    if desk.wait_till && desk.wait_till > current_time
-      wait_seconds = desk.wait_till - current_time
-      wait_msg = "[FetchTicketCommentsJob] Desk #{desk.domain} is rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
-      Rails.logger.info wait_msg
-      puts wait_msg
-      sleep(wait_seconds)
-      desk.reload # Reload in case wait_till was updated
-    end
+    wait_if_rate_limited(desk)
 
     # Throttle: Add a small delay before making API call to avoid rate limits
     # This helps prevent hitting Zendesk's rate limits when many comment jobs run in parallel
@@ -41,15 +32,8 @@ class FetchTicketCommentsJob < ApplicationJob
 
       response = client.connection.get("/api/v2/tickets/#{ticket_id}/comments.json")
 
-      # Monitor rate limit headers to track remaining requests
-      rate_limit_info = log_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
-
-      # Dynamically adjust delay based on remaining rate limit
-      if rate_limit_info && rate_limit_info[:percentage] < 20
-        # If we're below 20% remaining, add extra delay to slow down
-        extra_delay = (20 - rate_limit_info[:percentage]) * 0.1 # Up to 2 seconds extra delay
-        sleep(extra_delay) if extra_delay > 0
-      end
+      # Monitor rate limit and back off when remaining is low (best practice: regulate request rate)
+      throttle_using_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
 
       # Check for 429 rate limit error in response
       # Handle both response.status and response.env[:status] for different response structures
