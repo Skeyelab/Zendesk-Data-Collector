@@ -1,6 +1,21 @@
+require "digest"
+
 class Rack::Attack
-  # Allow webhook endpoint (n8n ticket updates) without throttling
-  safelist("webhooks/tickets") { |req| req.path == "/webhooks/tickets" && req.post? }
+  # Allow webhook endpoint (n8n ticket updates) without throttling,
+  # but only for callers presenting the correct shared secret header.
+  safelist("webhooks/tickets") do |req|
+    next false unless req.path == "/webhooks/tickets" && req.post?
+
+    provided_secret = req.get_header("HTTP_X_WEBHOOK_SECRET")
+    expected_secret = ENV["WEBHOOKS_TICKETS_SECRET"]
+
+    next false if provided_secret.nil? || expected_secret.nil?
+
+    secure_provided = ::Digest::SHA256.hexdigest(provided_secret)
+    secure_expected = ::Digest::SHA256.hexdigest(expected_secret)
+
+    ActiveSupport::SecurityUtils.secure_compare(secure_provided, secure_expected)
+  end
 
   # Throttle login attempts by IP
   throttle("logins/ip", limit: 5, period: 20.seconds) do |req|

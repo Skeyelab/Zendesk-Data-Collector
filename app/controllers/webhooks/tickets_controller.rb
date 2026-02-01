@@ -4,6 +4,7 @@
 module Webhooks
   class TicketsController < ApplicationController
     skip_before_action :verify_authenticity_token, only: [:create]
+    before_action :authenticate_webhook, only: [:create]
 
     def create
       payload = (request.content_mime_type&.symbol == :json && params.present?) ? params.to_unsafe_h : parse_payload
@@ -16,6 +17,12 @@ module Webhooks
 
       if domain.blank?
         return render json: {error: "domain is required"}, status: :unprocessable_entity
+      end
+
+      # Validate desk exists and is active before enqueueing
+      desk = Desk.find_by(domain: domain, active: true)
+      unless desk
+        return render json: {error: "No active desk found for domain #{domain}"}, status: :not_found
       end
 
       unless %w[get put post].include?(method)
@@ -32,6 +39,28 @@ module Webhooks
     end
 
     private
+
+    def authenticate_webhook
+      provided_secret = request.headers["X-Webhook-Secret"]
+      expected_secret = ENV["WEBHOOKS_TICKETS_SECRET"]
+
+      if expected_secret.blank?
+        Rails.logger.error "[WebhooksTicketsController] WEBHOOKS_TICKETS_SECRET not configured"
+        return render json: {error: "Webhook authentication not configured"}, status: :internal_server_error
+      end
+
+      if provided_secret.blank?
+        return render json: {error: "X-Webhook-Secret header required"}, status: :unauthorized
+      end
+
+      # Use secure comparison to prevent timing attacks
+      unless ActiveSupport::SecurityUtils.secure_compare(
+        ::Digest::SHA256.hexdigest(provided_secret),
+        ::Digest::SHA256.hexdigest(expected_secret)
+      )
+        return render json: {error: "Invalid webhook secret"}, status: :unauthorized
+      end
+    end
 
     def parse_payload
       return {} if request.raw_post.blank?
