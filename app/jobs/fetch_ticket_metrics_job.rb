@@ -11,19 +11,19 @@ class FetchTicketMetricsJob < FetchTicketDetailJobBase
   end
 
   def response_key
-    'ticket_metric'
+    "ticket_metric"
   end
 
   def resource_name
-    'metrics'
+    "metrics"
   end
 
   def delay_env_var
-    'METRICS_JOB_DELAY_SECONDS'
+    "METRICS_JOB_DELAY_SECONDS"
   end
 
   def log_received(ticket_id, data)
-    keys = data.keys.join(', ')
+    keys = data.keys.join(", ")
     job_log(:info, "[#{job_name}] Received metrics data for ticket #{ticket_id}: #{keys}")
   end
 
@@ -44,7 +44,7 @@ class FetchTicketMetricsJob < FetchTicketDetailJobBase
     extracted_metrics << "replies: #{ticket.replies}" if ticket.replies
     if extracted_metrics.any?
       job_log(:info,
-              "[#{job_name}] Extracted metrics for ticket #{ticket.zendesk_id}: #{extracted_metrics.join(', ')}")
+        "[#{job_name}] Extracted metrics for ticket #{ticket.zendesk_id}: #{extracted_metrics.join(", ")}")
     end
 
     ticket.save!

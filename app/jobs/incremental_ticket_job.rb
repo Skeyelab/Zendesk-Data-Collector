@@ -13,8 +13,8 @@ class IncrementalTicketJob < ApplicationJob
     job_log(:info, "[IncrementalTicketJob] Starting for desk #{desk.domain} (ID: #{desk_id})")
 
     job_log(:info, "[IncrementalTicketJob] Last timestamp: #{desk.last_timestamp} (#{if desk.last_timestamp > 0
-                                                                                        Time.at(desk.last_timestamp)
-                                                                                      end})")
+                                                                                       Time.at(desk.last_timestamp)
+                                                                                     end})")
 
     client = ZendeskClientService.connect(desk)
     start_time = desk.last_timestamp
@@ -34,7 +34,7 @@ class IncrementalTicketJob < ApplicationJob
       throttle_using_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
 
       # Handle 429: wait Retry-After then retry (best practice)
-      response_status = response.respond_to?(:status) ? response.status : (response.env && response.env[:status])
+      response_status = extract_response_status(response)
       if response_status == 429
         handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, "incremental", retry_count,
           max_retries)
@@ -48,11 +48,7 @@ class IncrementalTicketJob < ApplicationJob
       end
 
       # Handle response body (may be already parsed by JSON middleware or a string)
-      response_body = if response.body.is_a?(Hash)
-        response.body
-      else
-        JSON.parse(response.body)
-      end
+      response_body = parse_response_body(response)
 
       tickets_data = response_body["tickets"] || []
       users_data = response_body["users"] || []
