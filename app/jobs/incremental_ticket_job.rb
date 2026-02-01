@@ -97,6 +97,9 @@ class IncrementalTicketJob < ApplicationJob
         # This helps prevent rate limiting by staggering job execution
         ticket_id = enriched_ticket["id"] || enriched_ticket[:id]
         if ticket_id
+          status = enriched_ticket["status"] || enriched_ticket[:status]
+          closed = status.to_s == "closed"
+
           # Add a small delay to stagger jobs and reduce API call rate
           # Delay is based on ticket position to spread out execution over time
           stagger_seconds = ENV.fetch("COMMENT_JOB_STAGGER_SECONDS", "0.2").to_f
@@ -104,7 +107,9 @@ class IncrementalTicketJob < ApplicationJob
 
           # Enqueue comment job if fetch_comments is enabled
           if desk.fetch_comments
-            FetchTicketCommentsJob.set(wait: delay_seconds.seconds).perform_later(ticket_id, desk.id, desk.domain)
+            comment_opts = {wait: delay_seconds.seconds}
+            comment_opts[:queue] = "comments_closed" if closed
+            FetchTicketCommentsJob.set(comment_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
 
           # Enqueue metrics fetch job with a slight additional delay after comments
@@ -112,8 +117,9 @@ class IncrementalTicketJob < ApplicationJob
           if desk.fetch_metrics
             metrics_stagger_seconds = ENV.fetch("METRICS_JOB_STAGGER_SECONDS", "0.2").to_f
             metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % 5.0
-            FetchTicketMetricsJob.set(wait: metrics_delay_seconds.seconds).perform_later(ticket_id, desk.id,
-              desk.domain)
+            metrics_opts = {wait: metrics_delay_seconds.seconds}
+            metrics_opts[:queue] = "metrics_closed" if closed
+            FetchTicketMetricsJob.set(metrics_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
         end
 
