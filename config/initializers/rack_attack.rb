@@ -11,10 +11,8 @@ class Rack::Attack
 
     next false if provided_secret.nil? || expected_secret.nil?
 
-    secure_provided = ::Digest::SHA256.hexdigest(provided_secret)
-    secure_expected = ::Digest::SHA256.hexdigest(expected_secret)
-
-    ActiveSupport::SecurityUtils.secure_compare(secure_provided, secure_expected)
+    # secure_compare already prevents timing attacks, no need to hash
+    ActiveSupport::SecurityUtils.secure_compare(provided_secret, expected_secret)
   end
 
   # Throttle login attempts by IP

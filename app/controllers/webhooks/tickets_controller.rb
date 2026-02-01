@@ -53,11 +53,8 @@ module Webhooks
         return render json: {error: "X-Webhook-Secret header required"}, status: :unauthorized
       end
 
-      # Use secure comparison to prevent timing attacks
-      unless ActiveSupport::SecurityUtils.secure_compare(
-        ::Digest::SHA256.hexdigest(provided_secret),
-        ::Digest::SHA256.hexdigest(expected_secret)
-      )
+      # secure_compare already prevents timing attacks, no need to hash
+      unless ActiveSupport::SecurityUtils.secure_compare(provided_secret, expected_secret)
         return render json: {error: "Invalid webhook secret"}, status: :unauthorized
       end
     end
