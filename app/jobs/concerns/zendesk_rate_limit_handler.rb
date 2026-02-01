@@ -8,9 +8,16 @@ module ZendeskRateLimitHandler
     return unless desk.wait_till && desk.wait_till > current_time
 
     wait_seconds = desk.wait_till - current_time
-    Rails.logger.info "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})"
+    job_log(:info,
+            "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})")
     sleep(wait_seconds) unless Rails.env.test?
     desk.reload
+  end
+
+  # Log to both Rails.logger and stdout for visibility in job runners.
+  def job_log(level, message)
+    Rails.logger.public_send(level, message)
+    puts message
   end
 
   # When rate limit remaining is low, back off until reset to avoid 429.
@@ -20,12 +27,13 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
     wait_seconds = info[:reset] + 1
-    Rails.logger.info "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset"
+    job_log(:info,
+            "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset")
     sleep(wait_seconds) unless Rails.env.test?
   end
 
@@ -42,8 +50,8 @@ module ZendeskRateLimitHandler
     # Standard rate limit headers
     rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
     rate_limit_remaining = extract_header_value(headers,
-      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
-    rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
+                                                %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
+    rate_limit_reset = extract_header_value(headers, ['ratelimit-reset'])
 
     return unless rate_limit && rate_limit_remaining
 
@@ -55,14 +63,9 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
-    # Warn if we're getting low on requests (below half of headroom)
-    if percentage_remaining < (headroom_percent / 2)
-      Rails.logger.warn rate_limit_msg
-    else
-      Rails.logger.info rate_limit_msg
-    end
-    puts rate_limit_msg
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
+    level = percentage_remaining < (headroom_percent / 2) ? :warn : :info
+    job_log(level, rate_limit_msg)
 
     # Return rate limit info for potential dynamic throttling
     {
@@ -129,7 +132,7 @@ module ZendeskRateLimitHandler
     return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
 
     # Check if error message indicates 429
-    if error.message.include?("status 429")
+    if error.message.include?('status 429')
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
 
@@ -165,8 +168,7 @@ module ZendeskRateLimitHandler
     desk.reload
 
     rate_limit_msg = "[#{self.class.name}] Rate limit (429) for resource #{resource_id}, waiting #{wait_seconds}s (Retry-After: #{retry_after}s, retry #{retry_count + 1}/#{max_retries})"
-    Rails.logger.warn rate_limit_msg
-    puts rate_limit_msg
+    job_log(:warn, rate_limit_msg)
 
     # Wait before retrying
     sleep(wait_seconds) unless Rails.env.test?
