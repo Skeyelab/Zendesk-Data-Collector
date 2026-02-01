@@ -150,7 +150,7 @@ class IncrementalTicketJob < ApplicationJob
         return
       end
 
-      job_log_error(e, "Error processing tickets for desk #{desk_id}")
+      job_log_error(e, "Processing tickets for desk #{desk_id}")
     ensure
       # Use update_all to set queued=false without affecting wait_till
       Desk.where(id: desk.id).update_all(queued: false)
@@ -210,7 +210,7 @@ class IncrementalTicketJob < ApplicationJob
     # Return status for logging
     is_new ? :created : :updated
   rescue => e
-    job_log_error(e, "Error saving ticket #{ticket_hash["id"]} for #{domain}")
+    job_log_error(e, "Saving ticket #{ticket_hash["id"]} for #{domain}")
     # Continue processing other tickets
     :error
   end
