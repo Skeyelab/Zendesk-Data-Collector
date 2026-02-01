@@ -11,15 +11,15 @@ class FetchTicketCommentsJob < FetchTicketDetailJobBase
   end
 
   def response_key
-    'comments'
+    "comments"
   end
 
   def resource_name
-    'comments'
+    "comments"
   end
 
   def delay_env_var
-    'COMMENT_JOB_DELAY_SECONDS'
+    "COMMENT_JOB_DELAY_SECONDS"
   end
 
   def empty_value
@@ -31,7 +31,7 @@ class FetchTicketCommentsJob < FetchTicketDetailJobBase
   end
 
   def persist_data(ticket, data)
-    updated_raw_data = ticket.raw_data.merge('comments' => data)
+    updated_raw_data = ticket.raw_data.merge("comments" => data)
     ticket.update_columns(raw_data: updated_raw_data)
   end
 end
