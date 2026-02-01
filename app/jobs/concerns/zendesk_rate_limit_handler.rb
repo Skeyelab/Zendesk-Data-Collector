@@ -20,7 +20,7 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
@@ -42,8 +42,8 @@ module ZendeskRateLimitHandler
     # Standard rate limit headers
     rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
     rate_limit_remaining = extract_header_value(headers,
-      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
-    rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
+                                                %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
+    rate_limit_reset = extract_header_value(headers, ['ratelimit-reset'])
 
     return unless rate_limit && rate_limit_remaining
 
@@ -51,20 +51,18 @@ module ZendeskRateLimitHandler
     rate_limit_remaining = rate_limit_remaining.to_i
     percentage_remaining = (rate_limit_remaining.to_f / rate_limit.to_f * 100).round(1)
 
-    # Log rate limit status
-    rate_limit_msg = "[#{job_name}] Rate limit: #{rate_limit_remaining}/#{rate_limit} remaining (#{percentage_remaining}%)"
+    # Log rate limit status (X-Rate-Limit, X-Rate-Limit-Remaining per Zendesk API docs)
+    rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
     # Warn if we're getting low on requests (below half of headroom)
     if percentage_remaining < (headroom_percent / 2)
       Rails.logger.warn rate_limit_msg
-      puts rate_limit_msg
-    elsif percentage_remaining < (headroom_percent + 5)
-      Rails.logger.info rate_limit_msg
     else
-      Rails.logger.debug rate_limit_msg
+      Rails.logger.info rate_limit_msg
     end
+    puts rate_limit_msg
 
     # Return rate limit info for potential dynamic throttling
     {
@@ -131,7 +129,7 @@ module ZendeskRateLimitHandler
     return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
 
     # Check if error message indicates 429
-    if error.message.include?("status 429")
+    if error.message.include?('status 429')
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
 
@@ -177,102 +175,19 @@ module ZendeskRateLimitHandler
   def extract_retry_after(response_or_env)
     return 10 unless response_or_env
 
-    # Try to get headers from various possible locations
-    headers = nil
-
-    # First, try accessing response.env (Faraday stores response data in env)
-    if response_or_env.respond_to?(:env) && response_or_env.env
-      env = response_or_env.env
-      # Check response_headers in env hash (Faraday's standard location)
-      if env[:response_headers]
-        headers = env[:response_headers]
-        # Try all possible header key formats (case-insensitive)
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-      # Also check headers directly in env
-      if env[:headers]
-        headers = env[:headers]
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
+    # Faraday::TooManyRequestsError (and other Faraday::Error subclasses) have response_headers method
+    if response_or_env.respond_to?(:response_headers) && response_or_env.response_headers
+      retry_after = extract_header_value(response_or_env.response_headers, %w[Retry-After retry-after])
+      return retry_after.to_i if retry_after.to_i.positive?
     end
 
-    # Handle Faraday response object headers (most common case)
-    if response_or_env.respond_to?(:headers)
-      headers = response_or_env.headers || {}
-
-      # Try accessing via get method first (Faraday::Utils::Headers supports this, case-insensitive)
-      if headers.respond_to?(:get)
-        retry_after_header = headers.get("Retry-After") ||
-          headers.get("retry-after") ||
-          headers.get(:retry_after)
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-
-      # Try direct hash access with various key formats
-      if headers.is_a?(Hash) || headers.respond_to?(:[])
-        retry_after_header = headers["Retry-After"] ||
-          headers[:Retry_After] ||
-          headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["RETRY-AFTER"] ||
-          headers[:RETRY_AFTER]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
+    headers = extract_headers(response_or_env)
+    if headers
+      retry_after = extract_header_value(headers, %w[Retry-After retry-after])
+      return retry_after.to_i if retry_after.to_i.positive?
     end
 
-    # Handle ZendeskAPI callback env hash (from ZendeskClientService)
-    if response_or_env.is_a?(Hash)
-      # Check response_headers in env hash
-      if response_or_env[:response_headers]
-        headers = response_or_env[:response_headers]
-        retry_after_header = headers[:retry_after] ||
-          headers["retry-after"] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-
-      # Also check direct header access in env
-      if response_or_env[:headers]
-        headers = response_or_env[:headers]
-        retry_after_header = headers["retry-after"] ||
-          headers[:retry_after] ||
-          headers["Retry-After"] ||
-          headers[:Retry_After]
-        if retry_after_header
-          retry_after = retry_after_header.to_i
-          return retry_after if retry_after > 0
-        end
-      end
-    end
-
-    # Default to 10 seconds if Retry-After header not found
-    Rails.logger.warn("[#{self.class.name}] Retry-After header not found, defaulting to 10 seconds")
+    Rails.logger.debug("[#{self.class.name}] Retry-After header not found, defaulting to 10 seconds")
     10
   end
 end
