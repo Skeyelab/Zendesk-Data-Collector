@@ -58,6 +58,9 @@ Use `docker-compose.yml` when both databases are already running in Coolify.
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
    - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
 
+   **Webhook Security (Required for n8n integration):**
+   - `WEBHOOKS_TICKETS_SECRET` - Secure random string for webhook authentication (generate with `openssl rand -hex 32`)
+
    **Optional:**
    - `RAILS_MAX_THREADS=5` - Puma thread count
    - `RAILS_SERVE_STATIC_FILES=true` - Serve precompiled assets from Rails
@@ -128,6 +131,9 @@ Use `docker-compose.coolify-pg.yml` when you want PostgreSQL managed within the 
    **Recommended for Initial Setup:**
    - `DEFAULT_ADMIN_USER` - Email address for the initial admin user (e.g., `admin@example.com`)
    - `DEFAULT_ADMIN_PW` - Password for the initial admin user (optional - can use `SERVICE_PASSWORD_ADMIN` magic variable instead)
+
+   **Webhook Security (Required for n8n integration):**
+   - `WEBHOOKS_TICKETS_SECRET` - Secure random string for webhook authentication (generate with `openssl rand -hex 32`)
 
    **Optional PostgreSQL Configuration:**
    - `POSTGRES_USER` - PostgreSQL username (default: `postgres`)

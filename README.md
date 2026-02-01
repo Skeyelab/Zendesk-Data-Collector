@@ -100,14 +100,26 @@ Jobs are prioritized to ensure efficient processing:
 The app exposes a **queued proxy** so tools like n8n can call the Zendesk API through your rate-limit queue without storing ticket data in this app.
 
 - **Endpoint**: `POST /webhooks/tickets`
+- **Authentication**: Required via `X-Webhook-Secret` header (see Configuration below)
 - **Behavior**: Request is enqueued as `ZendeskProxyJob` on the **proxy** queue. The job performs the Zendesk API call using the same rate-limit logic (Desk `wait_till`, throttle, 429 retries). No `ZendeskTicket` rows are created or updated from the webhook.
-- **Rack::Attack**: This path is safelisted so n8n is not throttled.
+- **Validation**: The webhook validates that the specified `domain` corresponds to an active Desk before enqueueing the job.
+- **Rack::Attack**: This path is safelisted from throttling only for authenticated requests with the correct shared secret.
+
+### Configuration
+
+Set the `WEBHOOKS_TICKETS_SECRET` environment variable to a secure random string (e.g., generated with `openssl rand -hex 32`):
+
+```bash
+WEBHOOKS_TICKETS_SECRET=your_secure_random_string_here
+```
+
+All webhook requests must include this secret in the `X-Webhook-Secret` header. The comparison is done using secure cryptographic hashing to prevent timing attacks.
 
 ### Payload (JSON)
 
 | Field       | Required | Description |
 |------------|----------|-------------|
-| `domain`   | Yes      | Zendesk subdomain (e.g. `yourcompany.zendesk.com`). Must match a configured Desk. |
+| `domain`   | Yes      | Zendesk subdomain (e.g. `yourcompany.zendesk.com`). Must match an active configured Desk. |
 | `method`   | No       | `get`, `put`, or `post`. Default: `get`. |
 | `ticket_id`| For get/put | Zendesk ticket ID. Required for `get` and `put`. |
 | `body`     | For put/post | Request body for Zendesk API (e.g. `{ "ticket": { "status": "solved" } }`). |
@@ -116,37 +128,54 @@ The app exposes a **queued proxy** so tools like n8n can call the Zendesk API th
 
 **GET a ticket** (proxy fetches from Zendesk, does not store):
 
-```json
-{ "domain": "yourcompany.zendesk.com", "method": "get", "ticket_id": 12345 }
+```bash
+curl -X POST https://your-app.com/webhooks/tickets \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{ "domain": "yourcompany.zendesk.com", "method": "get", "ticket_id": 12345 }'
 ```
 
 **UPDATE a ticket** (proxy sends PUT to Zendesk):
 
-```json
-{
-  "domain": "yourcompany.zendesk.com",
-  "method": "put",
-  "ticket_id": 12345,
-  "body": { "ticket": { "status": "solved" } }
-}
+```bash
+curl -X POST https://your-app.com/webhooks/tickets \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{
+    "domain": "yourcompany.zendesk.com",
+    "method": "put",
+    "ticket_id": 12345,
+    "body": { "ticket": { "status": "solved" } }
+  }'
 ```
 
 **CREATE a ticket** (proxy sends POST to Zendesk):
 
-```json
-{
-  "domain": "yourcompany.zendesk.com",
-  "method": "post",
-  "body": {
-    "ticket": {
-      "subject": "New ticket",
-      "comment": { "body": "Initial comment" }
+```bash
+curl -X POST https://your-app.com/webhooks/tickets \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{
+    "domain": "yourcompany.zendesk.com",
+    "method": "post",
+    "body": {
+      "ticket": {
+        "subject": "New ticket",
+        "comment": { "body": "Initial comment" }
+      }
     }
-  }
-}
+  }'
 ```
 
 Response: `202 Accepted` with `{ "status": "accepted" }`. The actual Zendesk call runs asynchronously on the proxy queue.
+
+### Error Responses
+
+- `401 Unauthorized`: Missing or invalid `X-Webhook-Secret` header
+- `404 Not Found`: No active Desk found for the specified domain
+- `422 Unprocessable Entity`: Invalid parameters (missing domain, invalid method, etc.)
+- `500 Internal Server Error`: Webhook authentication not configured (`WEBHOOKS_TICKETS_SECRET` not set)
+
 
 ## Admin Interface
 
