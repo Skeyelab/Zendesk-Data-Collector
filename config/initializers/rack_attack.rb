@@ -1,4 +1,7 @@
 class Rack::Attack
+  # Allow webhook endpoint (n8n ticket updates) without throttling
+  safelist("webhooks/tickets") { |req| req.path == "/webhooks/tickets" && req.post? }
+
   # Throttle login attempts by IP
   throttle("logins/ip", limit: 5, period: 20.seconds) do |req|
     req.ip if req.path == "/admin_users/sign_in" && req.post?

@@ -70,7 +70,7 @@ class IncrementalTicketJob < ApplicationJob
         enriched_ticket = enrich_ticket_with_users(ticket_data, user_lookup)
 
         # Save ticket immediately (without comments)
-        result = save_ticket_to_postgres(enriched_ticket, desk.domain)
+        result = upsert_ticket(enriched_ticket, desk.domain)
         processed += 1
         case result
         when :created
@@ -182,32 +182,10 @@ class IncrementalTicketJob < ApplicationJob
     ticket_hash
   end
 
-  def save_ticket_to_postgres(ticket_data, domain)
-    # Convert ticket data to hash if it's not already
-    ticket_hash = ticket_data.is_a?(Hash) ? ticket_data : ticket_data.to_h
-
-    # Ensure domain is set
-    ticket_hash["domain"] = domain
-
-    # Find or initialize ticket
-    zendesk_id = ticket_hash["id"] || ticket_hash[:id]
-    is_new = !ZendeskTicket.exists?(zendesk_id: zendesk_id, domain: domain)
-
-    ticket = ZendeskTicket.find_or_initialize_by(
-      zendesk_id: zendesk_id,
-      domain: domain
-    )
-
-    # Use the model's assign_ticket_data method to handle field mapping
-    ticket.assign_ticket_data(ticket_hash)
-
-    ticket.save!
-
-    # Return status for logging
-    is_new ? :created : :updated
+  def upsert_ticket(ticket_data, domain)
+    ZendeskTicketUpsertService.call(ticket_data, domain)
   rescue => e
-    job_log_error(e, "ticket #{ticket_hash["id"]} for #{domain}")
-    # Continue processing other tickets
+    job_log_error(e, "ticket #{ticket_data["id"] || ticket_data[:id]} for #{domain}")
     :error
   end
 end
