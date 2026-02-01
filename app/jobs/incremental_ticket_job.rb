@@ -210,8 +210,7 @@ class IncrementalTicketJob < ApplicationJob
     # Return status for logging
     is_new ? :created : :updated
   rescue => e
-    job_log(:error, "[IncrementalTicketJob] Error saving ticket #{ticket_hash["id"]} for #{domain}: #{e.message}")
-    job_log(:error, "[IncrementalTicketJob] #{e.class}: #{e.message}")
+    job_log(:error, "[IncrementalTicketJob] Error saving ticket #{ticket_hash["id"]} for #{domain}: #{e.class}: #{e.message}")
     # Continue processing other tickets
     :error
   end
