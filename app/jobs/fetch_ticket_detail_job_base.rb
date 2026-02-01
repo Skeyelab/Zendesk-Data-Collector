@@ -28,7 +28,7 @@ class FetchTicketDetailJobBase < ApplicationJob
   end
 
   def apply_throttle(ticket_id, desk)
-    sleep_duration = ENV.fetch(delay_env_var, "0.5").to_f
+    sleep_duration = ENV.fetch(delay_env_var, "0").to_f
     return unless sleep_duration > 0
 
     job_log(:info,

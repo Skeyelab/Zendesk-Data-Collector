@@ -50,7 +50,7 @@ class FetchTicketMetricsJobTest < ActiveJob::TestCase
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     FetchTicketMetricsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
-    # Throttle (0.5s) + API; no multi-second wait from wait_till
+    # API only; no multi-second wait from wait_till (throttle default is 0)
     assert elapsed < 3, "Job should complete without long rate-limit wait, elapsed=#{elapsed}s"
   end
 

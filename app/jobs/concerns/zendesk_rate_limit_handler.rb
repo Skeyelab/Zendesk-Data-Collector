@@ -10,7 +10,7 @@ module ZendeskRateLimitHandler
 
     wait_seconds = desk.wait_till - current_time
     job_log(:info,
-            "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})")
+      "[#{self.class.name}] Desk #{desk.domain} rate-limited, waiting #{wait_seconds}s (until #{Time.at(desk.wait_till)})")
     sleep(wait_seconds) unless Rails.env.test?
     desk.reload
   end
@@ -22,13 +22,13 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '25').to_i
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "25").to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
     wait_seconds = info[:reset] + 1
     job_log(:info,
-            "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset")
+      "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset")
     sleep(wait_seconds) unless Rails.env.test?
   end
 
@@ -38,7 +38,7 @@ module ZendeskRateLimitHandler
     return response.status if response.respond_to?(:status)
     return response[:status] if response.is_a?(Hash)
 
-    response.respond_to?(:env) && response.env ? response.env[:status] : nil
+    (response.respond_to?(:env) && response.env) ? response.env[:status] : nil
   end
 
   # Returns parsed response body as a Hash (handles already-parsed body or JSON string).
@@ -64,8 +64,8 @@ module ZendeskRateLimitHandler
     # Standard rate limit headers
     rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
     rate_limit_remaining = extract_header_value(headers,
-                                                %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
-    rate_limit_reset = extract_header_value(headers, ['ratelimit-reset'])
+      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
+    rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
 
     return unless rate_limit && rate_limit_remaining
 
@@ -77,8 +77,8 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '25').to_i
-    level = percentage_remaining < (headroom_percent / 2) ? :warn : :info
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "25").to_i
+    level = (percentage_remaining < (headroom_percent / 2)) ? :warn : :info
     job_log(level, rate_limit_msg)
 
     # Return rate limit info for potential dynamic throttling
@@ -98,7 +98,7 @@ module ZendeskRateLimitHandler
     return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
 
     # Check if error message indicates 429
-    if error.message.include?('status 429')
+    if error.message.include?("status 429")
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
 
