@@ -5,7 +5,6 @@ class ZendeskClientService
     return unless env && env[:status] == 429
 
     retry_after = ZendeskApiHeaders.extract_retry_after(env, 10)
-    retry_after = 10 if retry_after <= 0
     new_wait_till = retry_after + Time.now.to_i
     Desk.where(id: desk.id).update_all(wait_till: new_wait_till)
   end
