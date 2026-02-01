@@ -2,7 +2,7 @@ class FetchTicketCommentsJob < ApplicationJob
   include ZendeskRateLimitHandler
 
   queue_as :comments
-  queue_with_priority 20 # Lower priority - process comments after incremental jobs
+  queue_with_priority 10 # Lower priority - process comments after incremental jobs
 
   def perform(ticket_id, desk_id, domain)
     desk = Desk.find(desk_id)
