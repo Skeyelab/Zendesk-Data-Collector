@@ -10,6 +10,7 @@ A Rails 8 application that extracts ticket data from Zendesk in real-time to a P
 - **Background Job Processing**: Uses Solid Queue (Rails 8 default) for reliable background job processing
 - **Automatic Comment Fetching**: Fetches and stores ticket comments separately with rate limiting protection
 - **Rate Limit Handling**: Built-in rate limit detection and backoff to prevent API throttling
+- **n8n Webhook Proxy**: Queued proxy for n8n (or other callers) to forward Zendesk API calls (GET/PUT/POST tickets) through the same rate-limit queue—no ticket data is stored from the webhook
 - **Admin Interface**: Powered by Avo 3.0 for managing Zendesk accounts and viewing ticket data
 - **Job Monitoring**: Mission Control interface for monitoring background jobs and recurring tasks
 - **Secure Credentials**: Encrypted API token storage using Rails Active Record Encryption
@@ -63,7 +64,7 @@ This hybrid approach provides:
 
 ## Background Job Architecture
 
-The application uses three main jobs:
+The application uses four main jobs:
 
 1. **QueueIncrementalTicketsJob** (recurring every second)
    - Finds desks ready for sync based on last sync time and wait intervals
@@ -82,11 +83,70 @@ The application uses three main jobs:
    - Implements rate limit detection and backoff
    - Stores comments in ticket's `raw_data` JSONB column
 
+4. **ZendeskProxyJob** (queued: proxy)
+   - Proxies a single Zendesk API call (GET/PUT/POST tickets) from the webhook endpoint
+   - Uses the same rate limit handling as other Zendesk jobs
+   - Does **not** create or update `ZendeskTicket` rows—only forwards the request to Zendesk
+
 ### Job Priority System
 
 Jobs are prioritized to ensure efficient processing:
 - **Priority 0**: Incremental ticket jobs (highest - process tickets first)
 - **Priority 20**: Comment fetch jobs (lower - fetch comments after tickets)
+- **proxy** queue: ZendeskProxyJob (webhook-proxied Zendesk API calls from n8n)
+
+## n8n Webhook Proxy
+
+The app exposes a **queued proxy** so tools like n8n can call the Zendesk API through your rate-limit queue without storing ticket data in this app.
+
+- **Endpoint**: `POST /webhooks/tickets`
+- **Behavior**: Request is enqueued as `ZendeskProxyJob` on the **proxy** queue. The job performs the Zendesk API call using the same rate-limit logic (Desk `wait_till`, throttle, 429 retries). No `ZendeskTicket` rows are created or updated from the webhook.
+- **Rack::Attack**: This path is safelisted so n8n is not throttled.
+
+### Payload (JSON)
+
+| Field       | Required | Description |
+|------------|----------|-------------|
+| `domain`   | Yes      | Zendesk subdomain (e.g. `yourcompany.zendesk.com`). Must match a configured Desk. |
+| `method`   | No       | `get`, `put`, or `post`. Default: `get`. |
+| `ticket_id`| For get/put | Zendesk ticket ID. Required for `get` and `put`. |
+| `body`     | For put/post | Request body for Zendesk API (e.g. `{ "ticket": { "status": "solved" } }`). |
+
+### Examples
+
+**GET a ticket** (proxy fetches from Zendesk, does not store):
+
+```json
+{ "domain": "yourcompany.zendesk.com", "method": "get", "ticket_id": 12345 }
+```
+
+**UPDATE a ticket** (proxy sends PUT to Zendesk):
+
+```json
+{
+  "domain": "yourcompany.zendesk.com",
+  "method": "put",
+  "ticket_id": 12345,
+  "body": { "ticket": { "status": "solved" } }
+}
+```
+
+**CREATE a ticket** (proxy sends POST to Zendesk):
+
+```json
+{
+  "domain": "yourcompany.zendesk.com",
+  "method": "post",
+  "body": {
+    "ticket": {
+      "subject": "New ticket",
+      "comment": { "body": "Initial comment" }
+    }
+  }
+}
+```
+
+Response: `202 Accepted` with `{ "status": "accepted" }`. The actual Zendesk call runs asynchronously on the proxy queue.
 
 ## Admin Interface
 
