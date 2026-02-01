@@ -15,8 +15,7 @@ class ApplicationJob < ActiveJob::Base
   # Helper for logging errors with class, message, and backtrace
   def job_log_error(error, context = "")
     prefix = context.present? ? "#{context}: " : ""
-    job_log(:error, "[#{self.class.name}] #{prefix}#{error.message}")
-    job_log(:error, "[#{self.class.name}] #{error.class}: #{error.message}")
+    job_log(:error, "[#{self.class.name}] #{prefix}#{error.class}: #{error.message}")
     job_log(:error, "[#{self.class.name}] Backtrace:\n#{error.backtrace.join("\n")}")
   end
 end
