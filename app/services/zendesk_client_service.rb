@@ -4,9 +4,7 @@ class ZendeskClientService
   def self.persist_wait_till_from_429(desk, env)
     return unless env && env[:status] == 429
 
-    headers = env[:response_headers] || env[:headers] || {}
-    retry_after = (headers[:retry_after] || headers["retry-after"] || headers["Retry-After"] || 10).to_i
-    retry_after = 10 if retry_after <= 0
+    retry_after = ZendeskApiHeaders.extract_retry_after(env, 10)
     new_wait_till = retry_after + Time.now.to_i
     Desk.where(id: desk.id).update_all(wait_till: new_wait_till)
   end
