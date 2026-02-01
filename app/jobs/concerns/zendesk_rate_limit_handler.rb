@@ -20,7 +20,7 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
@@ -42,8 +42,8 @@ module ZendeskRateLimitHandler
     # Standard rate limit headers
     rate_limit = extract_header_value(headers, %w[X-Rate-Limit x-rate-limit ratelimit-limit])
     rate_limit_remaining = extract_header_value(headers,
-                                                %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
-    rate_limit_reset = extract_header_value(headers, ['ratelimit-reset'])
+      %w[X-Rate-Limit-Remaining x-rate-limit-remaining ratelimit-remaining])
+    rate_limit_reset = extract_header_value(headers, ["ratelimit-reset"])
 
     return unless rate_limit && rate_limit_remaining
 
@@ -55,7 +55,7 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '20').to_i
+    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "20").to_i
     # Warn if we're getting low on requests (below half of headroom)
     if percentage_remaining < (headroom_percent / 2)
       Rails.logger.warn rate_limit_msg
@@ -129,7 +129,7 @@ module ZendeskRateLimitHandler
     return error.instance_variable_get(:@response) if error.instance_variable_defined?(:@response)
 
     # Check if error message indicates 429
-    if error.message.include?('status 429')
+    if error.message.include?("status 429")
       # Try to extract from env if available (ZendeskAPI callback style)
       return error.env if error.respond_to?(:env) && error.env
 
