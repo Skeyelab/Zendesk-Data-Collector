@@ -14,12 +14,6 @@ module ZendeskRateLimitHandler
     desk.reload
   end
 
-  # Log to both Rails.logger and stdout for visibility in job runners.
-  def job_log(level, message)
-    Rails.logger.public_send(level, message)
-    puts message
-  end
-
   # When rate limit remaining is low, back off until reset to avoid 429.
   # Uses headroom threshold so we leave capacity for other API consumers (scripts, UI, integrations).
   # See: https://developer.zendesk.com/documentation/api-basics/best-practices/best-practices-for-avoiding-rate-limiting/
