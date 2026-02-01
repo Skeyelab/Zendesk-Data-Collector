@@ -537,8 +537,35 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       assert_enqueued_jobs 2 do
         IncrementalTicketJob.perform_now(@desk.id)
       end
-      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"])
-      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"])
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"], queue: "comments")
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"], queue: "metrics")
+    end
+  end
+
+  test "should enqueue comment and metrics jobs to closed queues when ticket is closed" do
+    closed_ticket_data = @ticket_data.merge(status: "closed")
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [closed_ticket_data],
+          users: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_difference "ZendeskTicket.count", 1 do
+      assert_enqueued_jobs 2 do
+        IncrementalTicketJob.perform_now(@desk.id)
+      end
+      assert_enqueued_with(job: FetchTicketCommentsJob, args: [12_345, @desk.id, "test.zendesk.com"],
+        queue: "comments_closed")
+      assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"],
+        queue: "metrics_closed")
     end
   end
 
