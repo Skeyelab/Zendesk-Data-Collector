@@ -58,6 +58,18 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     end
   end
 
+  test "does nothing when desk is inactive" do
+    @desk.update!(active: false)
+    stub_ticket_get(3004, {id: 3004, subject: "Inactive desk", status: "open"})
+
+    assert_no_difference "ZendeskTicket.count" do
+      ZendeskProxyJob.perform_now("support.example.com", "get", 3004, nil)
+    end
+
+    # Should not make any API request when desk is inactive
+    assert_not_requested :get, "https://support.example.com/api/v2/tickets/3004.json"
+  end
+
   test "waits when desk is rate limited" do
     @desk.update_column(:wait_till, Time.now.to_i + 1)
     stub_ticket_get(3003, {id: 3003, subject: "Rate limited", status: "open"})

@@ -18,6 +18,11 @@ class ZendeskProxyJob < ApplicationJob
       return
     end
 
+    unless desk.active?
+      Rails.logger.warn "[ZendeskProxyJob] Desk #{desk.id} for domain #{domain} is inactive, skipping proxy request"
+      return
+    end
+
     wait_if_rate_limited(desk)
     client = ZendeskClientService.connect(desk)
     retry_count = 0
