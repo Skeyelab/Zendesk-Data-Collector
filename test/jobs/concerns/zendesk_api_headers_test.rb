@@ -20,4 +20,14 @@ class ZendeskApiHeadersTest < ActiveSupport::TestCase
     env = {response_headers: {"retry-after" => "7"}}
     assert_equal 7, ZendeskApiHeaders.extract_retry_after(env)
   end
+
+  test "extract_retry_after returns default when header is zero" do
+    env = {response_headers: {"Retry-After" => "0"}}
+    assert_equal 10, ZendeskApiHeaders.extract_retry_after(env)
+  end
+
+  test "extract_retry_after returns default when header is negative" do
+    env = {response_headers: {"Retry-After" => "-5"}}
+    assert_equal 10, ZendeskApiHeaders.extract_retry_after(env)
+  end
 end
