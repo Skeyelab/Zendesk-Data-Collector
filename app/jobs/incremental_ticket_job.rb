@@ -10,15 +10,11 @@ class IncrementalTicketJob < ApplicationJob
     desk = Desk.find(desk_id)
     wait_if_rate_limited(desk)
 
-    msg = "[IncrementalTicketJob] Starting for desk #{desk.domain} (ID: #{desk_id})"
-    Rails.logger.info msg
-    puts msg
+    job_log(:info, "[IncrementalTicketJob] Starting for desk #{desk.domain} (ID: #{desk_id})")
 
-    timestamp_msg = "[IncrementalTicketJob] Last timestamp: #{desk.last_timestamp} (#{if desk.last_timestamp > 0
+    job_log(:info, "[IncrementalTicketJob] Last timestamp: #{desk.last_timestamp} (#{if desk.last_timestamp > 0
                                                                                         Time.at(desk.last_timestamp)
-                                                                                      end})"
-    Rails.logger.info timestamp_msg
-    puts timestamp_msg
+                                                                                      end})")
 
     client = ZendeskClientService.connect(desk)
     start_time = desk.last_timestamp
@@ -26,9 +22,7 @@ class IncrementalTicketJob < ApplicationJob
     retry_count = 0
 
     begin
-      fetch_msg = "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})"
-      Rails.logger.info fetch_msg
-      puts fetch_msg
+      job_log(:info, "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})")
 
       # Fetch tickets with sideloaded users
       response = client.connection.get("/api/v2/incremental/tickets.json") do |req|
@@ -46,10 +40,10 @@ class IncrementalTicketJob < ApplicationJob
           max_retries)
         retry_count += 1
         if retry_count <= max_retries
-          Rails.logger.info "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})"
+          job_log(:info, "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})")
           raise RateLimitRetry
         end
-        Rails.logger.warn "[IncrementalTicketJob] Max retries reached after 429, exiting"
+        job_log(:warn, "[IncrementalTicketJob] Max retries reached after 429, exiting")
         return
       end
 
@@ -68,9 +62,7 @@ class IncrementalTicketJob < ApplicationJob
       user_lookup = build_user_lookup(users_data)
 
       ticket_count = tickets_data.size
-      received_msg = "[IncrementalTicketJob] Received #{ticket_count} ticket(s) and #{users_data.size} user(s) from API"
-      Rails.logger.info received_msg
-      puts received_msg
+      job_log(:info, "[IncrementalTicketJob] Received #{ticket_count} ticket(s) and #{users_data.size} user(s) from API")
 
       processed = 0
       created = 0
@@ -126,14 +118,10 @@ class IncrementalTicketJob < ApplicationJob
         # Log progress every 10 tickets
         next unless processed % 10 == 0
 
-        progress_msg = "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})"
-        Rails.logger.info progress_msg
-        puts progress_msg
+        job_log(:info, "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})")
       end
 
-      summary_msg = "[IncrementalTicketJob] Completed processing: #{processed} total (created: #{created}, updated: #{updated}, errors: #{errors})"
-      Rails.logger.info summary_msg
-      puts summary_msg
+      job_log(:info, "[IncrementalTicketJob] Completed processing: #{processed} total (created: #{created}, updated: #{updated}, errors: #{errors})")
 
       # Update desk timestamp if we got new data
       if end_time
@@ -141,13 +129,9 @@ class IncrementalTicketJob < ApplicationJob
         if new_timestamp > 0 && new_timestamp > start_time
           desk.last_timestamp = new_timestamp
           desk.save
-          timestamp_update_msg = "[IncrementalTicketJob] Updated desk timestamp to #{new_timestamp} (#{Time.at(new_timestamp)})"
-          Rails.logger.info timestamp_update_msg
-          puts timestamp_update_msg
+          job_log(:info, "[IncrementalTicketJob] Updated desk timestamp to #{new_timestamp} (#{Time.at(new_timestamp)})")
         else
-          no_update_msg = "[IncrementalTicketJob] Timestamp not updated (new: #{new_timestamp}, start: #{start_time})"
-          Rails.logger.info no_update_msg
-          puts no_update_msg
+          job_log(:info, "[IncrementalTicketJob] Timestamp not updated (new: #{new_timestamp}, start: #{start_time})")
         end
       end
     rescue RateLimitRetry
@@ -159,31 +143,19 @@ class IncrementalTicketJob < ApplicationJob
         handle_rate_limit_error(response_from_error || e, desk, "incremental", retry_count, max_retries)
         retry_count += 1
         if retry_count <= max_retries
-          Rails.logger.info "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})"
+          job_log(:info, "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})")
           retry
         end
-        Rails.logger.warn "[IncrementalTicketJob] Max retries reached after 429, exiting"
+        job_log(:warn, "[IncrementalTicketJob] Max retries reached after 429, exiting")
         return
       end
 
-      error_msg = "[IncrementalTicketJob] Error processing tickets for desk #{desk_id}: #{e.message}"
-      Rails.logger.error error_msg
-      puts error_msg
-
-      class_msg = "[IncrementalTicketJob] #{e.class}: #{e.message}"
-      Rails.logger.error class_msg
-      puts class_msg
-
-      backtrace_msg = "[IncrementalTicketJob] Backtrace:\n#{e.backtrace.join("\n")}"
-      Rails.logger.error backtrace_msg
-      puts backtrace_msg
+      job_log_error(e, "Error processing tickets for desk #{desk_id}")
     ensure
       # Use update_all to set queued=false without affecting wait_till
       Desk.where(id: desk.id).update_all(queued: false)
       desk.reload
-      complete_msg = "[IncrementalTicketJob] Job completed for desk #{desk.domain}, queued flag reset"
-      Rails.logger.info complete_msg
-      puts complete_msg
+      job_log(:info, "[IncrementalTicketJob] Job completed for desk #{desk.domain}, queued flag reset")
     end
   end
 
@@ -238,13 +210,8 @@ class IncrementalTicketJob < ApplicationJob
     # Return status for logging
     is_new ? :created : :updated
   rescue => e
-    error_msg = "[IncrementalTicketJob] Error saving ticket #{ticket_hash["id"]} for #{domain}: #{e.message}"
-    Rails.logger.error error_msg
-    puts error_msg
-
-    class_msg = "[IncrementalTicketJob] #{e.class}: #{e.message}"
-    Rails.logger.error class_msg
-    puts class_msg
+    job_log(:error, "[IncrementalTicketJob] Error saving ticket #{ticket_hash["id"]} for #{domain}: #{e.message}")
+    job_log(:error, "[IncrementalTicketJob] #{e.class}: #{e.message}")
     # Continue processing other tickets
     :error
   end
