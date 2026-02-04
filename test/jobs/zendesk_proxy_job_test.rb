@@ -33,11 +33,14 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
       .to_return(status: status, body: {ticket: {id: ticket_id}}.to_json, headers: {"Content-Type" => "application/json"})
   end
 
-  test "GET ticket proxies to Zendesk and does not create ZendeskTicket" do
+  test "GET ticket proxies to Zendesk, returns status and body, and does not create ZendeskTicket" do
     stub_ticket_get(3001, {id: 3001, subject: "Proxy get", status: "open"})
 
     assert_no_difference "ZendeskTicket.count" do
-      ZendeskProxyJob.perform_now("support.example.com", "get", 3001, nil)
+      result = ZendeskProxyJob.perform_now("support.example.com", "get", 3001, nil)
+      assert_equal 200, result[0]
+      assert_equal 3001, result[1]["ticket"]["id"]
+      assert_equal "Proxy get", result[1]["ticket"]["subject"]
     end
   end
 
