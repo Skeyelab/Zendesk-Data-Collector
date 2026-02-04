@@ -7,12 +7,14 @@ A Rails 8 application that extracts ticket data from Zendesk in real-time to a P
 - **Real-time Data Synchronization**: Continuously syncs ticket data from Zendesk using the Incremental Export API
 - **Flexible Schema**: Stores complete ticket data in JSONB columns with indexed common fields for fast queries
 - **Multi-tenant Support**: Manage multiple Zendesk accounts (domains) from a single installation
-- **Background Job Processing**: Uses Solid Queue (Rails 8 default) for reliable background job processing
-- **Automatic Comment Fetching**: Fetches and stores ticket comments separately with rate limiting protection
-- **Rate Limit Handling**: Built-in rate limit detection and backoff to prevent API throttling
+- **Background Job Processing**: Uses Solid Queue (Rails 8 default) for reliable background job processing with priority queues
+- **Configurable Data Collection**: Per-desk control over comment and metrics fetching
+- **Automatic Comment Fetching**: Fetches and stores ticket comments separately with staggered delays and rate limiting protection
+- **Automatic Metrics Extraction**: Fetches ticket metrics and extracts to indexed columns for fast reporting
+- **Comprehensive Rate Limit Handling**: Built-in rate limit detection, backoff, retry logic, and persistent state management
 - **n8n Webhook Proxy**: Queued proxy for n8n (or other callers) to forward Zendesk API calls (GET/PUT/POST tickets) through the same rate-limit queue—no ticket data is stored from the webhook
-- **Admin Interface**: Powered by Avo 3.0 for managing Zendesk accounts and viewing ticket data
-- **Job Monitoring**: Mission Control interface for monitoring background jobs and recurring tasks
+- **Admin Interface**: Powered by Avo 3.0 for managing Zendesk accounts and viewing ticket data with dashboard cards
+- **Job Monitoring**: Mission Control interface for monitoring background jobs, recurring tasks, and queue health
 - **Secure Credentials**: Encrypted API token storage using Rails Active Record Encryption
 
 ## Technology Stack
@@ -29,12 +31,14 @@ A Rails 8 application that extracts ticket data from Zendesk in real-time to a P
 ## How It Works
 
 1. **Configure Zendesk Accounts**: Add your Zendesk accounts (called "Desks") through the admin interface at `/avo`
+   - Configure which data to fetch: enable/disable comments and metrics per desk
 2. **Automatic Data Collection**: Every second, the system checks for active desks ready for sync
 3. **Incremental Export**: Uses Zendesk's Incremental Export API to fetch new and updated tickets since the last sync
 4. **User Enrichment**: Sideloads user data from the API to enrich tickets with requester and assignee information
-5. **Comment Collection**: Separately fetches comments for each ticket with rate limiting protection
-6. **Data Storage**: Stores tickets in PostgreSQL with common fields in indexed columns and complete data in JSONB
-7. **Multi-tenant**: Each desk can be synced independently with its own last sync timestamp
+5. **Comment Collection**: Separately fetches comments for each ticket with rate limiting protection (if enabled)
+6. **Metrics Collection**: Separately fetches metrics for each ticket and extracts to indexed columns (if enabled)
+7. **Data Storage**: Stores tickets in PostgreSQL with common fields in indexed columns and complete data in JSONB
+8. **Multi-tenant**: Each desk can be synced independently with its own last sync timestamp and configuration
 
 ## Data Architecture
 
@@ -42,8 +46,8 @@ A Rails 8 application that extracts ticket data from Zendesk in real-time to a P
 
 The application uses PostgreSQL exclusively for all data storage:
 
-- **zendesk_tickets**: Stores all ticket data with indexed columns for common fields (status, priority, assignee, etc.) and a JSONB column (`raw_data`) containing the complete API response including custom fields
-- **desks**: Stores Zendesk account configurations (domain, encrypted API token, last sync timestamps)
+- **zendesk_tickets**: Stores all ticket data with indexed columns for common fields (status, priority, assignee, etc.), metrics columns (resolution times, wait times, etc.), and a JSONB column (`raw_data`) containing the complete API response including custom fields, comments, and raw metrics
+- **desks**: Stores Zendesk account configurations (domain, encrypted API token, last sync timestamps, `fetch_comments` and `fetch_metrics` flags)
 - **admin_users**: Stores admin user accounts for accessing the admin interface (Devise authentication)
 - **solid_queue_***: Tables for Solid Queue background job processing
 
@@ -54,13 +58,15 @@ Common fields are extracted to indexed columns for performance:
 - Requester info: `req_name`, `req_email`, `req_id`, `req_external_id`
 - Assignment: `assignee_name`, `assignee_id`, `group_name`, `group_id`
 - Timestamps: `created_at`, `updated_at`, `assigned_at`, `solved_at`
-- Metrics: SLA metrics, wait times, resolution times
-- Complete data: `raw_data` JSONB column with full API response
+- Metrics: SLA metrics (first reply, first/full resolution times), wait times (agent, requester, on hold), counters (reopens, replies), business hours variants
+- Comments: Stored as array in `raw_data["comments"]`
+- Complete data: `raw_data` JSONB column with full API response, including custom fields and raw metrics
 
 This hybrid approach provides:
 - **Fast queries** on common fields using indexes
 - **Flexibility** to access any field from the API response via JSONB
 - **Forward compatibility** with new Zendesk fields without schema changes
+- **Optimized metrics** extracted to columns for reporting and analytics
 
 ## Background Job Architecture
 
@@ -71,17 +77,32 @@ The application uses four main jobs:
    - Resets stuck "queued" flags for desks that have been processing too long
    - Queues IncrementalTicketJob for each ready desk
 
-2. **IncrementalTicketJob** (high priority)
+2. **IncrementalTicketJob** (Priority 0 - high priority)
    - Fetches tickets from Zendesk Incremental Export API
    - Enriches tickets with sideloaded user data
    - Creates or updates tickets in PostgreSQL
-   - Queues FetchTicketCommentsJob for each ticket with staggered delays
+   - Queues FetchTicketCommentsJob and FetchTicketMetricsJob for each ticket with staggered delays
    - Updates desk's last sync timestamp
 
-3. **FetchTicketCommentsJob** (lower priority, queued: comments)
-   - Fetches comments for individual tickets
-   - Implements rate limit detection and backoff
-   - Stores comments in ticket's `raw_data` JSONB column
+3. **FetchTicketCommentsJob** (Priority 10 - lower priority, queues: `comments`, `comments_closed`)
+   - Fetches comments for individual tickets from `/api/v2/tickets/{id}/comments.json`
+   - Only queued when updating existing tickets (not for new tickets)
+   - Uses staggered delays to prevent API rate limiting (configurable via `COMMENT_JOB_STAGGER_SECONDS`)
+   - Implements rate limit detection and backoff with retry logic
+   - Stores comments array in ticket's `raw_data["comments"]` JSONB column
+   - Can be disabled per desk with `fetch_comments` flag
+
+4. **FetchTicketMetricsJob** (Priority 10 - lower priority, queues: `metrics`, `metrics_closed`)
+   - Fetches ticket metrics from `/api/v2/tickets/{id}/metrics.json`
+   - Extracts metrics to indexed columns for fast queries:
+     - Time metrics: `first_reply_time_in_minutes`, `first_resolution_time_in_minutes`, `full_resolution_time_in_minutes`
+     - Wait times: `agent_wait_time_in_minutes`, `requester_wait_time_in_minutes`, `on_hold_time_in_minutes`
+     - Counters: `reopens`, `replies`
+     - Business hours variants for all time metrics
+   - Also stores raw response in `raw_data["ticket_metric"]` JSONB column
+   - Uses staggered delays to prevent API rate limiting (configurable via `METRICS_JOB_STAGGER_SECONDS`)
+   - Implements rate limit detection and backoff with retry logic
+   - Can be disabled per desk with `fetch_metrics` flag
 
 4. **ZendeskProxyJob** (queued: proxy)
    - Proxies a single Zendesk API call (GET/PUT/POST tickets) from the webhook endpoint
@@ -92,8 +113,16 @@ The application uses four main jobs:
 
 Jobs are prioritized to ensure efficient processing:
 - **Priority 0**: Incremental ticket jobs (highest - process tickets first)
-- **Priority 20**: Comment fetch jobs (lower - fetch comments after tickets)
+- **Priority 10**: Comment and metrics fetch jobs (lower - fetch details after tickets)
 - **proxy** queue: ZendeskProxyJob (webhook-proxied Zendesk API calls from n8n)
+
+### Conditional Queue Names
+
+To optimize processing of closed/solved tickets, the application uses different queues:
+- Active tickets: Uses `comments` and `metrics` queues
+- Closed/solved tickets: Uses `comments_closed` and `metrics_closed` queues
+
+This allows you to prioritize processing of active tickets if needed by configuring different worker pools.
 
 ## n8n Webhook Proxy
 
@@ -176,7 +205,6 @@ Response: `202 Accepted` with `{ "status": "accepted" }`. The actual Zendesk cal
 - `422 Unprocessable Entity`: Invalid parameters (missing domain, invalid method, etc.)
 - `500 Internal Server Error`: Webhook authentication not configured (`WEBHOOKS_TICKETS_SECRET` not set)
 
-
 ## Admin Interface
 
 Access the admin interface at `/avo` after logging in with your admin credentials.
@@ -190,18 +218,66 @@ Access the admin interface at `/avo` after logging in with your admin credential
 1. Login at `/avo` with the admin credentials configured during deployment
 2. Navigate to "Desks" and click "New Desk"
 3. Enter your Zendesk domain (e.g., `yourcompany.zendesk.com`), username/email, and API token
-4. Set the desk to "Active" to start syncing
-5. Monitor sync progress in the Desks list or check Jobs at `/jobs`
+4. Configure data collection options:
+   - Check "Fetch Comments" to enable comment fetching (enabled by default)
+   - Check "Fetch Metrics" to enable metrics fetching (enabled by default)
+5. Set the desk to "Active" to start syncing
+6. Monitor sync progress in the Desks list or check Jobs at `/jobs`
+
+## Configuration
+
+### Desk Configuration Options
+
+Each Zendesk account (Desk) can be configured with the following options via the Avo admin interface:
+
+- **Active**: Enable/disable syncing for this desk
+- **Fetch Comments**: When enabled, fetches comments for each ticket and stores in `raw_data["comments"]`
+- **Fetch Metrics**: When enabled, fetches metrics for each ticket and extracts to indexed columns
+
+### Environment Variables
+
+The following environment variables can be used to configure the application:
+
+**Rate Limiting & API Control:**
+- `ZENDESK_RATE_LIMIT_HEADROOM_PERCENT` - Percentage of rate limit to maintain as headroom before backing off (default: `18`)
+- `COMMENT_JOB_DELAY_SECONDS` - Initial delay before processing comment jobs (default: `0`)
+- `COMMENT_JOB_STAGGER_SECONDS` - Delay between each comment job to prevent API flooding (default: `0.2`)
+- `METRICS_JOB_DELAY_SECONDS` - Initial delay before processing metrics jobs (default: `0`)
+- `METRICS_JOB_STAGGER_SECONDS` - Delay between each metrics job to prevent API flooding (default: `0.2`)
+
+**Background Job Configuration:**
+- `SOLID_QUEUE_CONCURRENCY` - Number of concurrent background job workers (default: `5` for production, `1` for development)
+- `RAILS_MAX_THREADS` - Puma thread count (default: `5`)
+
+**Database & Security:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - Encryption key for API tokens (64-character hex string)
+- `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - Deterministic encryption key (64-character hex string)
+- `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - Key derivation salt (64-character hex string)
+- `SECRET_KEY_BASE` - Rails secret key base
+
+### Rate Limiting Behavior
+
+The application implements comprehensive rate limit handling:
+
+1. **Pre-request Waiting**: Before making API calls, checks if desk has a `wait_till` timestamp and sleeps if needed
+2. **Header-based Throttling**: Monitors `X-Rate-Limit` headers and backs off when remaining calls drop below the configured headroom percentage
+3. **429 Error Handling**: Detects 429 (Too Many Requests) responses, extracts `Retry-After` header, and updates desk's `wait_till` timestamp
+4. **Retry Logic**: Automatically retries requests up to 3 times with progressive backoff
+5. **Persistent State**: Rate limit wait states are stored in the database and survive job failures or restarts
 
 ## Deployment
 
 This application is deployed using Docker and Docker Compose. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions covering:
-- Coolify deployment with internal PostgreSQL
-- Local development setup with Docker Compose
-- Environment configuration
-- Admin user setup
+- Coolify deployment options (with external or internal PostgreSQL)
+- Environment configuration and magic variables
+- Admin user setup with automatic seeding
 
-**Note**: The DEPLOYMENT.md file mentions MongoDB options, but this is outdated documentation. The application only uses PostgreSQL. MongoDB support was planned but never implemented.
+Available Docker Compose configurations:
+- `docker-compose.yml` - Production deployment with external PostgreSQL
+- `docker-compose-coolify.yml` - Coolify deployment with internal PostgreSQL
+
+**Note**: The DEPLOYMENT.md file may mention MongoDB options and additional docker-compose files, but these are outdated. The application **only uses PostgreSQL** (no MongoDB), and only the two compose files listed above exist in the repository.
 
 ## Reporting & Analytics
 
@@ -215,42 +291,84 @@ Once deployed and syncing data, you can connect your reporting tool of choice di
 Examples:
 ```sql
 -- Query tickets by status
-SELECT * FROM zendesk_tickets WHERE status = 'open' AND domain = 'yourcompany.zendesk.com';
+SELECT * FROM zendesk_tickets 
+WHERE status = 'open' AND domain = 'yourcompany.zendesk.com';
 
 -- Query custom fields from JSONB
 SELECT zendesk_id, raw_data->>'custom_field_12345' as custom_value 
 FROM zendesk_tickets 
 WHERE domain = 'yourcompany.zendesk.com';
 
--- Aggregate ticket metrics
-SELECT status, COUNT(*), AVG(full_resolution_time_in_minutes) 
+-- Aggregate ticket metrics with indexed columns
+SELECT 
+  status, 
+  COUNT(*) as ticket_count,
+  AVG(full_resolution_time_in_minutes) as avg_resolution_minutes,
+  AVG(first_reply_time_in_minutes) as avg_first_reply_minutes,
+  AVG(agent_wait_time_in_minutes) as avg_agent_wait_minutes
 FROM zendesk_tickets 
 WHERE domain = 'yourcompany.zendesk.com' 
 GROUP BY status;
+
+-- Query tickets with comments from JSONB
+SELECT 
+  zendesk_id, 
+  subject,
+  jsonb_array_length(raw_data->'comments') as comment_count
+FROM zendesk_tickets 
+WHERE domain = 'yourcompany.zendesk.com'
+  AND raw_data->'comments' IS NOT NULL;
+
+-- Get tickets with high resolution times
+SELECT zendesk_id, subject, status, full_resolution_time_in_minutes
+FROM zendesk_tickets
+WHERE domain = 'yourcompany.zendesk.com'
+  AND full_resolution_time_in_minutes > 1440  -- More than 24 hours
+ORDER BY full_resolution_time_in_minutes DESC;
 ```
 
 ## Development
 
 ### Local Setup
 
+The repository includes two Docker Compose configurations:
+- `docker-compose.yml` - Production deployment (requires external PostgreSQL)
+- `docker-compose-coolify.yml` - Coolify deployment with internal PostgreSQL
+
+For local development, use `docker-compose-coolify.yml`:
+
 ```bash
 # Start all services (PostgreSQL, Rails, worker)
-docker-compose -f docker-compose.local.yml up
+docker-compose -f docker-compose-coolify.yml up
 
-# Run migrations
-docker-compose -f docker-compose.local.yml run web rails db:migrate
+# Run migrations (in another terminal)
+docker-compose -f docker-compose-coolify.yml run web rails db:migrate
 
 # Run tests
-docker-compose -f docker-compose.local.yml run web rails test
+docker-compose -f docker-compose-coolify.yml run web rails test
 
 # Run console
-docker-compose -f docker-compose.local.yml run web rails console
+docker-compose -f docker-compose-coolify.yml run web rails console
 
 # Check code style
-docker-compose -f docker-compose.local.yml run web bundle exec standardrb
+docker-compose -f docker-compose-coolify.yml run web bundle exec standardrb
 ```
 
-Note: There is no `docker-compose.local.yml` file in the repository yet. For local development, use the `docker-compose-coolify.yml` file with appropriate environment variables.
+**Environment Variables for Local Development:**
+
+Create a `.env` file in the project root with:
+```
+RAILS_ENV=development
+SECRET_KEY_BASE=development_secret_key_base_change_this_in_production
+ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=00000000000000000000000000000000
+ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=00000000000000000000000000000000
+ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=00000000000000000000000000000000
+DEFAULT_ADMIN_USER=admin@example.com
+DEFAULT_ADMIN_PW=password
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=zd_desk_data_collector_development
+```
 
 ### Running Tests
 
