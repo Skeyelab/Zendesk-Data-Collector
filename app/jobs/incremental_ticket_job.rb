@@ -25,9 +25,9 @@ class IncrementalTicketJob < ApplicationJob
       job_log(:info, "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})")
 
       # Fetch tickets with sideloaded users
-      response = client.connection.get('/api/v2/incremental/tickets.json') do |req|
+      response = client.connection.get("/api/v2/incremental/tickets.json") do |req|
         req.params[:start_time] = start_time
-        req.params[:include] = 'users'
+        req.params[:include] = "users"
       end
 
       # Monitor rate limit and back off when remaining is low (best practice: regulate request rate)
@@ -36,23 +36,23 @@ class IncrementalTicketJob < ApplicationJob
       # Handle 429: wait Retry-After then retry (best practice)
       response_status = extract_response_status(response)
       if response_status == 429
-        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, 'incremental', retry_count,
-                                max_retries)
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, "incremental", retry_count,
+          max_retries)
         retry_count += 1
         if retry_count <= max_retries
           job_log(:info, "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})")
           raise RateLimitRetry
         end
-        job_log(:warn, '[IncrementalTicketJob] Max retries reached after 429, exiting')
+        job_log(:warn, "[IncrementalTicketJob] Max retries reached after 429, exiting")
         return
       end
 
       # Handle response body (may be already parsed by JSON middleware or a string)
       response_body = parse_response_body(response)
 
-      tickets_data = response_body['tickets'] || []
-      users_data = response_body['users'] || []
-      end_time = response_body['end_time']
+      tickets_data = response_body["tickets"] || []
+      users_data = response_body["users"] || []
+      end_time = response_body["end_time"]
 
       # Build user lookup map
       user_lookup = build_user_lookup(users_data)
@@ -82,30 +82,30 @@ class IncrementalTicketJob < ApplicationJob
         end
 
         # Enqueue comment and metrics fetch jobs only for updates (new tickets don't have these yet)
-        ticket_id = enriched_ticket['id'] || enriched_ticket[:id]
+        ticket_id = enriched_ticket["id"] || enriched_ticket[:id]
         if ticket_id && result == :updated
-          status = enriched_ticket['status'] || enriched_ticket[:status]
+          status = enriched_ticket["status"] || enriched_ticket[:status]
           closed = %w[closed solved].include?(status.to_s)
 
           # Add a small delay to stagger jobs and reduce API call rate
           # Delay is based on ticket position to spread out execution over time
-          stagger_seconds = ENV.fetch('COMMENT_JOB_STAGGER_SECONDS', '0.2').to_f
+          stagger_seconds = ENV.fetch("COMMENT_JOB_STAGGER_SECONDS", "0.2").to_f
           delay_seconds = (processed * stagger_seconds) % 5.0 # Cycle every 5 seconds max
 
           # Enqueue comment job if fetch_comments is enabled
           if desk.fetch_comments
-            comment_opts = { wait: delay_seconds.seconds }
-            comment_opts[:queue] = 'comments_closed' if closed
+            comment_opts = {wait: delay_seconds.seconds}
+            comment_opts[:queue] = "comments_closed" if closed
             FetchTicketCommentsJob.set(comment_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
 
           # Enqueue metrics fetch job with a slight additional delay after comments
           # This ensures metrics jobs run after comments but still with proper staggering
           if desk.fetch_metrics
-            metrics_stagger_seconds = ENV.fetch('METRICS_JOB_STAGGER_SECONDS', '0.2').to_f
+            metrics_stagger_seconds = ENV.fetch("METRICS_JOB_STAGGER_SECONDS", "0.2").to_f
             metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % 5.0
-            metrics_opts = { wait: metrics_delay_seconds.seconds }
-            metrics_opts[:queue] = 'metrics_closed' if closed
+            metrics_opts = {wait: metrics_delay_seconds.seconds}
+            metrics_opts[:queue] = "metrics_closed" if closed
             FetchTicketMetricsJob.set(metrics_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
         end
@@ -131,17 +131,17 @@ class IncrementalTicketJob < ApplicationJob
       end
     rescue RateLimitRetry
       retry
-    rescue StandardError => e
-      is_rate_limit = e.message.include?('status 429') || e.message.include?('429') || e.message.include?('Rate limit exceeded')
+    rescue => e
+      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
       if is_rate_limit
         response_from_error = extract_response_from_error(e)
-        handle_rate_limit_error(response_from_error || e, desk, 'incremental', retry_count, max_retries)
+        handle_rate_limit_error(response_from_error || e, desk, "incremental", retry_count, max_retries)
         retry_count += 1
         if retry_count <= max_retries
           job_log(:info, "[IncrementalTicketJob] Retrying after 429 (attempt #{retry_count}/#{max_retries})")
           retry
         end
-        job_log(:warn, '[IncrementalTicketJob] Max retries reached after 429, exiting')
+        job_log(:warn, "[IncrementalTicketJob] Max retries reached after 429, exiting")
         return
       end
 
@@ -160,7 +160,7 @@ class IncrementalTicketJob < ApplicationJob
     return {} unless users_data.is_a?(Array)
 
     users_data.each_with_object({}) do |user, lookup|
-      user_id = user.is_a?(Hash) ? (user['id'] || user[:id]) : user.id
+      user_id = user.is_a?(Hash) ? (user["id"] || user[:id]) : user.id
       lookup[user_id] = user if user_id
     end
   end
@@ -169,13 +169,13 @@ class IncrementalTicketJob < ApplicationJob
     ticket_hash = ticket_hash.dup if ticket_hash.is_a?(Hash)
 
     # Add requester data
-    if (req_id = ticket_hash['requester_id'] || ticket_hash[:requester_id]) && (requester = user_lookup[req_id])
-      ticket_hash['requester'] = requester
+    if (req_id = ticket_hash["requester_id"] || ticket_hash[:requester_id]) && (requester = user_lookup[req_id])
+      ticket_hash["requester"] = requester
     end
 
     # Add assignee data
-    if (assignee_id = ticket_hash['assignee_id'] || ticket_hash[:assignee_id]) && (assignee = user_lookup[assignee_id])
-      ticket_hash['assignee'] = assignee
+    if (assignee_id = ticket_hash["assignee_id"] || ticket_hash[:assignee_id]) && (assignee = user_lookup[assignee_id])
+      ticket_hash["assignee"] = assignee
     end
 
     ticket_hash
@@ -183,7 +183,7 @@ class IncrementalTicketJob < ApplicationJob
 
   def upsert_ticket(ticket_data, domain)
     ZendeskTicketUpsertService.call(ticket_data, domain)
-  rescue StandardError => e
+  rescue => e
     job_log_error(e, "ticket #{ticket_data["id"] || ticket_data[:id]} for #{domain}")
     :error
   end
