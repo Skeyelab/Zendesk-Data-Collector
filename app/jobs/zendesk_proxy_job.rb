@@ -35,9 +35,11 @@ class ZendeskProxyJob < ApplicationJob
 
       status = extract_response_status(response)
       if status == 429
-        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, path, retry_count, MAX_RETRIES)
+        handle_rate_limit_error(response.respond_to?(:env) ? response.env : response, desk, path, retry_count,
+          MAX_RETRIES)
         retry_count += 1
         raise "Rate limit exceeded (429), retrying" if retry_count <= MAX_RETRIES
+
         return
       end
 
@@ -65,6 +67,7 @@ class ZendeskProxyJob < ApplicationJob
       "/api/v2/tickets.json"
     when "get", "put"
       raise ArgumentError, "ticket_id required for #{method}" if ticket_id.blank?
+
       "/api/v2/tickets/#{ticket_id}.json"
     else
       raise ArgumentError, "method must be get, put, or post"
@@ -89,6 +92,7 @@ class ZendeskProxyJob < ApplicationJob
     return {} if body.nil?
     return body if body.is_a?(Hash)
     return JSON.parse(body) if body.is_a?(String)
+
     {}
   end
 end

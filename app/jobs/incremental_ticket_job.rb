@@ -22,7 +22,8 @@ class IncrementalTicketJob < ApplicationJob
     retry_count = 0
 
     begin
-      job_log(:info, "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})")
+      job_log(:info,
+        "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})")
 
       # Fetch tickets with sideloaded users
       response = client.connection.get("/api/v2/incremental/tickets.json") do |req|
@@ -58,7 +59,8 @@ class IncrementalTicketJob < ApplicationJob
       user_lookup = build_user_lookup(users_data)
 
       ticket_count = tickets_data.size
-      job_log(:info, "[IncrementalTicketJob] Received #{ticket_count} ticket(s) and #{users_data.size} user(s) from API")
+      job_log(:info,
+        "[IncrementalTicketJob] Received #{ticket_count} ticket(s) and #{users_data.size} user(s) from API")
 
       processed = 0
       created = 0
@@ -114,10 +116,12 @@ class IncrementalTicketJob < ApplicationJob
         # Log progress every 10 tickets
         next unless processed % 10 == 0
 
-        job_log(:info, "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})")
+        job_log(:info,
+          "[IncrementalTicketJob] Processed #{processed}/#{ticket_count} tickets (created: #{created}, updated: #{updated}, errors: #{errors})")
       end
 
-      job_log(:info, "[IncrementalTicketJob] Completed processing: #{processed} total (created: #{created}, updated: #{updated}, errors: #{errors})")
+      job_log(:info,
+        "[IncrementalTicketJob] Completed processing: #{processed} total (created: #{created}, updated: #{updated}, errors: #{errors})")
 
       # Update desk timestamp if we got new data
       if end_time
@@ -125,7 +129,8 @@ class IncrementalTicketJob < ApplicationJob
         if new_timestamp > 0 && new_timestamp > start_time
           desk.last_timestamp = new_timestamp
           desk.save
-          job_log(:info, "[IncrementalTicketJob] Updated desk timestamp to #{new_timestamp} (#{Time.at(new_timestamp)})")
+          job_log(:info,
+            "[IncrementalTicketJob] Updated desk timestamp to #{new_timestamp} (#{Time.at(new_timestamp)})")
         else
           job_log(:info, "[IncrementalTicketJob] Timestamp not updated (new: #{new_timestamp}, start: #{start_time})")
         end

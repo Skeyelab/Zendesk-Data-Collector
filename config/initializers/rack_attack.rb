@@ -32,7 +32,7 @@ class Rack::Attack
   # end
 
   # Custom response for throttled requests
-  self.throttled_responder = lambda do |req|
+  self.throttled_responder = lambda do |_req|
     [
       429,
       {"Content-Type" => "text/plain"},

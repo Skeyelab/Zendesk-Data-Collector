@@ -15,15 +15,11 @@ module Webhooks
       ticket_id = payload["ticket_id"] || payload[:ticket_id]
       body = payload["body"] || payload[:body]
 
-      if domain.blank?
-        return render json: {error: "domain is required"}, status: :unprocessable_entity
-      end
+      return render json: {error: "domain is required"}, status: :unprocessable_entity if domain.blank?
 
       # Validate desk exists and is active before enqueueing
       desk = Desk.find_by(domain: domain, active: true)
-      unless desk
-        return render json: {error: "No active desk found for domain #{domain}"}, status: :not_found
-      end
+      return render json: {error: "No active desk found for domain #{domain}"}, status: :not_found unless desk
 
       unless %w[get put post].include?(method)
         return render json: {error: "method must be get, put, or post"}, status: :unprocessable_entity
@@ -49,14 +45,12 @@ module Webhooks
         return render json: {error: "Webhook authentication not configured"}, status: :internal_server_error
       end
 
-      if provided_secret.blank?
-        return render json: {error: "X-Webhook-Secret header required"}, status: :unauthorized
-      end
+      return render json: {error: "X-Webhook-Secret header required"}, status: :unauthorized if provided_secret.blank?
 
       # secure_compare already prevents timing attacks, no need to hash
-      unless ActiveSupport::SecurityUtils.secure_compare(provided_secret, expected_secret)
-        return render json: {error: "Invalid webhook secret"}, status: :unauthorized
-      end
+      return if ActiveSupport::SecurityUtils.secure_compare(provided_secret, expected_secret)
+
+      render json: {error: "Invalid webhook secret"}, status: :unauthorized
     end
 
     def parse_payload

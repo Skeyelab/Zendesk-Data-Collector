@@ -36,7 +36,7 @@ class FetchTicketDetailJobBase < ApplicationJob
     sleep(sleep_duration)
   end
 
-  def fetch_and_persist(ticket_id, desk_id, domain, desk, ticket)
+  def fetch_and_persist(ticket_id, _desk_id, _domain, desk, ticket)
     client = ZendeskClientService.connect(desk)
     retry_count = 0
 

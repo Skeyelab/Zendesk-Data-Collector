@@ -44,7 +44,9 @@ class WebhooksTicketsControllerTest < ActionDispatch::IntegrationTest
       body: {ticket: {status: "solved"}}
     }
 
-    assert_enqueued_with(job: ZendeskProxyJob, args: ["support.example.com", "put", 2002, {"ticket" => {"status" => "solved"}}]) do
+    assert_enqueued_with(job: ZendeskProxyJob,
+      args: ["support.example.com", "put", 2002,
+        {"ticket" => {"status" => "solved"}}]) do
       post webhooks_tickets_path, params: payload, as: :json, headers: @valid_headers
     end
 
@@ -73,20 +75,24 @@ class WebhooksTicketsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "POST with get/put but no ticket_id returns 422" do
-    post webhooks_tickets_path, params: {domain: "support.example.com", method: "get"}, as: :json, headers: @valid_headers
+    post webhooks_tickets_path, params: {domain: "support.example.com", method: "get"}, as: :json,
+      headers: @valid_headers
     assert_response :unprocessable_entity
 
-    post webhooks_tickets_path, params: {domain: "support.example.com", method: "put"}, as: :json, headers: @valid_headers
+    post webhooks_tickets_path, params: {domain: "support.example.com", method: "put"}, as: :json,
+      headers: @valid_headers
     assert_response :unprocessable_entity
   end
 
   test "POST with invalid method returns 422" do
-    post webhooks_tickets_path, params: {domain: "support.example.com", ticket_id: 1, method: "delete"}, as: :json, headers: @valid_headers
+    post webhooks_tickets_path, params: {domain: "support.example.com", ticket_id: 1, method: "delete"}, as: :json,
+      headers: @valid_headers
     assert_response :unprocessable_entity
   end
 
   test "POST with invalid JSON returns 400 or 422" do
-    post webhooks_tickets_path, params: "not json", headers: @valid_headers.merge({"Content-Type" => "application/json"})
+    post webhooks_tickets_path, params: "not json",
+      headers: @valid_headers.merge({"Content-Type" => "application/json"})
 
     assert_includes [400, 422], response.status
   end

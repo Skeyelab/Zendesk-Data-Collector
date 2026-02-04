@@ -10,7 +10,7 @@ class CreateActiveAdminComments < ActiveRecord::Migration::Current
     end
     add_index :active_admin_comments, [:namespace]
 
-    add_index :active_admin_comments, [:resource_type, :resource_id]
+    add_index :active_admin_comments, %i[resource_type resource_id]
   end
 
   def self.down

@@ -6,9 +6,7 @@ class QueueIncrementalTicketsJob < ApplicationJob
   def perform
     # Reset stuck queued flags before checking for ready desks
     stuck_reset = Desk.reset_stuck_queued_flags!
-    if stuck_reset > 0
-      job_log(:info, "[QueueIncrementalTicketsJob] Reset #{stuck_reset} stuck queued flag(s)")
-    end
+    job_log(:info, "[QueueIncrementalTicketsJob] Reset #{stuck_reset} stuck queued flag(s)") if stuck_reset > 0
 
     IncrementalExportRequest.prune_old!
 
@@ -29,7 +27,8 @@ class QueueIncrementalTicketsJob < ApplicationJob
       desks.each do |desk|
         break if IncrementalExportRequest.at_cap?
 
-        job_log(:info, "[QueueIncrementalTicketsJob] Queuing job for desk: #{desk.domain} (ID: #{desk.id}, last_timestamp: #{desk.last_timestamp})")
+        job_log(:info,
+          "[QueueIncrementalTicketsJob] Queuing job for desk: #{desk.domain} (ID: #{desk.id}, last_timestamp: #{desk.last_timestamp})")
         desk.queued = true
         desk.save
         IncrementalExportRequest.record_request!
