@@ -10,300 +10,252 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 20_260_130_043_532) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_04_120000) do
   # These are extensions that must be enabled in order to support this database
-  enable_extension 'pg_catalog.plpgsql'
+  enable_extension "pg_catalog.plpgsql"
 
-  create_table 'active_admin_comments', force: :cascade do |t|
-    t.integer 'author_id'
-    t.string 'author_type'
-    t.text 'body'
-    t.datetime 'created_at', null: false
-    t.string 'namespace'
-    t.string 'resource_id', null: false
-    t.string 'resource_type', null: false
-    t.datetime 'updated_at', null: false
-    t.index %w[author_type author_id], name: 'index_active_admin_comments_on_author_type_and_author_id'
-    t.index ['namespace'], name: 'index_active_admin_comments_on_namespace'
-    t.index %w[resource_type resource_id], name: 'index_active_admin_comments_on_resource_type_and_resource_id'
+  create_table "active_admin_comments", force: :cascade do |t|
+    t.integer "author_id"
+    t.string "author_type"
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.string "namespace"
+    t.string "resource_id", null: false
+    t.string "resource_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_type", "author_id"], name: "index_active_admin_comments_on_author_type_and_author_id"
+    t.index ["namespace"], name: "index_active_admin_comments_on_namespace"
+    t.index ["resource_type", "resource_id"], name: "index_active_admin_comments_on_resource_type_and_resource_id"
   end
 
-  create_table 'admin_users', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.datetime 'current_sign_in_at'
-    t.inet 'current_sign_in_ip'
-    t.string 'email', default: '', null: false
-    t.string 'encrypted_password', default: '', null: false
-    t.datetime 'last_sign_in_at'
-    t.inet 'last_sign_in_ip'
-    t.datetime 'remember_created_at'
-    t.datetime 'reset_password_sent_at'
-    t.string 'reset_password_token'
-    t.integer 'sign_in_count', default: 0, null: false
-    t.datetime 'updated_at', null: false
-    t.index ['email'], name: 'index_admin_users_on_email', unique: true
-    t.index ['reset_password_token'], name: 'index_admin_users_on_reset_password_token', unique: true
+  create_table "admin_users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "current_sign_in_at"
+    t.inet "current_sign_in_ip"
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.datetime "last_sign_in_at"
+    t.inet "last_sign_in_ip"
+    t.datetime "remember_created_at"
+    t.datetime "reset_password_sent_at"
+    t.string "reset_password_token"
+    t.integer "sign_in_count", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_admin_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
   end
 
-  create_table 'desks', force: :cascade do |t|
-    t.boolean 'active'
-    t.datetime 'created_at', null: false
-    t.string 'domain'
-    t.boolean 'fetch_comments', default: true, null: false
-    t.boolean 'fetch_metrics', default: true, null: false
-    t.integer 'last_timestamp'
-    t.integer 'last_timestamp_event'
-    t.boolean 'queued'
-    t.text 'token'
-    t.datetime 'updated_at', null: false
-    t.string 'user'
-    t.integer 'wait_till'
-    t.integer 'wait_till_event'
-    t.index %w[active queued], name: 'index_desks_on_active_and_queued'
-    t.index ['domain'], name: 'index_desks_on_domain', unique: true
+  create_table "desks", force: :cascade do |t|
+    t.boolean "active"
+    t.datetime "created_at", null: false
+    t.string "domain"
+    t.boolean "fetch_comments", default: true, null: false
+    t.boolean "fetch_metrics", default: true, null: false
+    t.integer "last_timestamp"
+    t.integer "last_timestamp_event"
+    t.boolean "queued"
+    t.text "token"
+    t.datetime "updated_at", null: false
+    t.string "user"
+    t.integer "wait_till"
+    t.integer "wait_till_event"
+    t.index ["active", "queued"], name: "index_desks_on_active_and_queued"
+    t.index ["domain"], name: "index_desks_on_domain", unique: true
   end
 
-  create_table 'geets_zendesk_com', id: :serial, force: :cascade do |t|
-    t.integer 'agent_wait_time_in_minutes'
-    t.integer 'agent_wait_time_in_minutes_within_business_hours'
-    t.datetime 'assigned_at'
-    t.bigint 'assignee_external_id'
-    t.bigint 'assignee_id'
-    t.string 'assignee_name', limit: 64
-    t.string 'assignee_stations', limit: 255
-    t.datetime 'created_at'
-    t.string 'current_tags', limit: 1024
-    t.string 'domain', limit: 255
-    t.string 'due_date', limit: 255
-    t.string 'field_76108047', limit: 255
-    t.integer 'first_reply_time_in_minutes'
-    t.integer 'first_reply_time_in_minutes_within_business_hours'
-    t.integer 'first_resolution_time_in_minutes'
-    t.integer 'first_resolution_time_in_minutes_within_business_hours'
-    t.integer 'full_resolution_time_in_minutes'
-    t.integer 'full_resolution_time_in_minutes_within_business_hours'
-    t.integer 'generated_timestamp'
-    t.bigint 'group_id'
-    t.string 'group_name', limit: 64
-    t.string 'group_stations', limit: 255
-    t.datetime 'initially_assigned_at'
-    t.integer 'on_hold_time_in_minutes'
-    t.integer 'on_hold_time_in_minutes_within_business_hours'
-    t.string 'organization_name', limit: 64
-    t.string 'priority', limit: 255
-    t.string 'reopens', limit: 255
-    t.string 'replies', limit: 255
-    t.string 'req_email', limit: 255
-    t.string 'req_external_id', limit: 64
-    t.bigint 'req_id'
-    t.string 'req_name', limit: 64
-    t.integer 'requester_wait_time_in_minutes'
-    t.integer 'requester_wait_time_in_minutes_within_business_hours'
-    t.string 'resolution_time', limit: 255
-    t.string 'satisfaction_score', limit: 255
-    t.datetime 'solved_at'
-    t.string 'status', limit: 255
-    t.string 'subject', limit: 255
-    t.string 'submitter_name', limit: 64
-    t.string 'ticket_type', limit: 255
-    t.datetime 'updated_at'
-    t.string 'url', limit: 255
-    t.string 'via', limit: 255
+  create_table "incremental_export_requests", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "requested_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["requested_at"], name: "index_incremental_export_requests_on_requested_at"
   end
 
-  create_table 'incremental_export_requests', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.datetime 'requested_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index ['requested_at'], name: 'index_incremental_export_requests_on_requested_at'
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.string "concurrency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
   end
 
-  create_table 'solid_queue_blocked_executions', force: :cascade do |t|
-    t.string 'concurrency_key', null: false
-    t.datetime 'created_at', null: false
-    t.datetime 'expires_at', null: false
-    t.bigint 'job_id', null: false
-    t.integer 'priority', default: 0, null: false
-    t.string 'queue_name', null: false
-    t.index %w[concurrency_key priority job_id], name: 'index_solid_queue_blocked_executions_for_release'
-    t.index %w[expires_at concurrency_key], name: 'index_solid_queue_blocked_executions_for_maintenance'
-    t.index ['job_id'], name: 'index_solid_queue_blocked_executions_on_job_id', unique: true
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
   end
 
-  create_table 'solid_queue_claimed_executions', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.bigint 'job_id', null: false
-    t.bigint 'process_id'
-    t.index ['job_id'], name: 'index_solid_queue_claimed_executions_on_job_id', unique: true
-    t.index %w[process_id job_id], name: 'index_solid_queue_claimed_executions_on_process_id_and_job_id'
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.bigint "job_id", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
   end
 
-  create_table 'solid_queue_failed_executions', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.text 'error'
-    t.bigint 'job_id', null: false
-    t.index ['job_id'], name: 'index_solid_queue_failed_executions_on_job_id', unique: true
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "active_job_id"
+    t.text "arguments"
+    t.string "class_name", null: false
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "finished_at"
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at"
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
   end
 
-  create_table 'solid_queue_jobs', force: :cascade do |t|
-    t.string 'active_job_id'
-    t.text 'arguments'
-    t.string 'class_name', null: false
-    t.string 'concurrency_key'
-    t.datetime 'created_at', null: false
-    t.datetime 'finished_at'
-    t.integer 'priority', default: 0, null: false
-    t.string 'queue_name', null: false
-    t.datetime 'scheduled_at'
-    t.datetime 'updated_at', null: false
-    t.index ['active_job_id'], name: 'index_solid_queue_jobs_on_active_job_id'
-    t.index ['class_name'], name: 'index_solid_queue_jobs_on_class_name'
-    t.index ['finished_at'], name: 'index_solid_queue_jobs_on_finished_at'
-    t.index %w[queue_name finished_at], name: 'index_solid_queue_jobs_for_filtering'
-    t.index %w[scheduled_at finished_at], name: 'index_solid_queue_jobs_for_alerting'
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "queue_name", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
   end
 
-  create_table 'solid_queue_pauses', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.string 'queue_name', null: false
-    t.index ['queue_name'], name: 'index_solid_queue_pauses_on_queue_name', unique: true
+  create_table "solid_queue_processes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "hostname"
+    t.string "kind", null: false
+    t.datetime "last_heartbeat_at", null: false
+    t.text "metadata"
+    t.string "name", null: false
+    t.integer "pid", null: false
+    t.bigint "supervisor_id"
+    t.index ["last_heartbeat_at"], name: "index_solid_queue_processes_on_last_heartbeat_at"
+    t.index ["name", "supervisor_id"], name: "index_solid_queue_processes_on_name_and_supervisor_id", unique: true
+    t.index ["supervisor_id"], name: "index_solid_queue_processes_on_supervisor_id"
   end
 
-  create_table 'solid_queue_processes', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.string 'hostname'
-    t.string 'kind', null: false
-    t.datetime 'last_heartbeat_at', null: false
-    t.text 'metadata'
-    t.string 'name', null: false
-    t.integer 'pid', null: false
-    t.bigint 'supervisor_id'
-    t.index ['last_heartbeat_at'], name: 'index_solid_queue_processes_on_last_heartbeat_at'
-    t.index %w[name supervisor_id], name: 'index_solid_queue_processes_on_name_and_supervisor_id', unique: true
-    t.index ['supervisor_id'], name: 'index_solid_queue_processes_on_supervisor_id'
+  create_table "solid_queue_ready_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["job_id"], name: "index_solid_queue_ready_executions_on_job_id", unique: true
+    t.index ["priority", "job_id"], name: "index_solid_queue_poll_all"
+    t.index ["queue_name", "priority", "job_id"], name: "index_solid_queue_poll_by_queue"
   end
 
-  create_table 'solid_queue_ready_executions', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.bigint 'job_id', null: false
-    t.integer 'priority', default: 0, null: false
-    t.string 'queue_name', null: false
-    t.index ['job_id'], name: 'index_solid_queue_ready_executions_on_job_id', unique: true
-    t.index %w[priority job_id], name: 'index_solid_queue_poll_all'
-    t.index %w[queue_name priority job_id], name: 'index_solid_queue_poll_by_queue'
+  create_table "solid_queue_recurring_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.datetime "run_at", null: false
+    t.string "task_key", null: false
+    t.index ["job_id"], name: "index_solid_queue_recurring_executions_on_job_id", unique: true
+    t.index ["task_key", "run_at"], name: "index_solid_queue_recurring_executions_on_task_key_and_run_at", unique: true
   end
 
-  create_table 'solid_queue_recurring_executions', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.bigint 'job_id', null: false
-    t.datetime 'run_at', null: false
-    t.string 'task_key', null: false
-    t.index ['job_id'], name: 'index_solid_queue_recurring_executions_on_job_id', unique: true
-    t.index %w[task_key run_at], name: 'index_solid_queue_recurring_executions_on_task_key_and_run_at', unique: true
+  create_table "solid_queue_recurring_tasks", force: :cascade do |t|
+    t.text "arguments"
+    t.string "class_name"
+    t.string "command", limit: 2048
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "key", null: false
+    t.integer "priority", default: 0
+    t.string "queue_name"
+    t.string "schedule", null: false
+    t.boolean "static", default: true, null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_solid_queue_recurring_tasks_on_key", unique: true
+    t.index ["static"], name: "index_solid_queue_recurring_tasks_on_static"
   end
 
-  create_table 'solid_queue_recurring_tasks', force: :cascade do |t|
-    t.text 'arguments'
-    t.string 'class_name'
-    t.string 'command', limit: 2048
-    t.datetime 'created_at', null: false
-    t.text 'description'
-    t.string 'key', null: false
-    t.integer 'priority', default: 0
-    t.string 'queue_name'
-    t.string 'schedule', null: false
-    t.boolean 'static', default: true, null: false
-    t.datetime 'updated_at', null: false
-    t.index ['key'], name: 'index_solid_queue_recurring_tasks_on_key', unique: true
-    t.index ['static'], name: 'index_solid_queue_recurring_tasks_on_static'
+  create_table "solid_queue_scheduled_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_scheduled_executions_on_job_id", unique: true
+    t.index ["scheduled_at", "priority", "job_id"], name: "index_solid_queue_dispatch_all"
   end
 
-  create_table 'solid_queue_scheduled_executions', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.bigint 'job_id', null: false
-    t.integer 'priority', default: 0, null: false
-    t.string 'queue_name', null: false
-    t.datetime 'scheduled_at', null: false
-    t.index ['job_id'], name: 'index_solid_queue_scheduled_executions_on_job_id', unique: true
-    t.index %w[scheduled_at priority job_id], name: 'index_solid_queue_dispatch_all'
+  create_table "solid_queue_semaphores", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "key", null: false
+    t.datetime "updated_at", null: false
+    t.integer "value", default: 1, null: false
+    t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
+    t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
+    t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
-  create_table 'solid_queue_semaphores', force: :cascade do |t|
-    t.datetime 'created_at', null: false
-    t.datetime 'expires_at', null: false
-    t.string 'key', null: false
-    t.datetime 'updated_at', null: false
-    t.integer 'value', default: 1, null: false
-    t.index ['expires_at'], name: 'index_solid_queue_semaphores_on_expires_at'
-    t.index %w[key value], name: 'index_solid_queue_semaphores_on_key_and_value'
-    t.index ['key'], name: 'index_solid_queue_semaphores_on_key', unique: true
+  create_table "zendesk_tickets", force: :cascade do |t|
+    t.integer "agent_wait_time_in_minutes"
+    t.integer "agent_wait_time_in_minutes_within_business_hours"
+    t.datetime "assigned_at"
+    t.bigint "assignee_external_id"
+    t.bigint "assignee_id"
+    t.string "assignee_name"
+    t.string "assignee_stations"
+    t.datetime "created_at", null: false
+    t.text "current_tags"
+    t.string "domain", null: false
+    t.string "due_date"
+    t.integer "first_reply_time_in_minutes"
+    t.integer "first_reply_time_in_minutes_within_business_hours"
+    t.integer "first_resolution_time_in_minutes"
+    t.integer "first_resolution_time_in_minutes_within_business_hours"
+    t.integer "full_resolution_time_in_minutes"
+    t.integer "full_resolution_time_in_minutes_within_business_hours"
+    t.integer "generated_timestamp"
+    t.bigint "group_id"
+    t.string "group_name"
+    t.string "group_stations"
+    t.datetime "initially_assigned_at"
+    t.integer "on_hold_time_in_minutes"
+    t.integer "on_hold_time_in_minutes_within_business_hours"
+    t.string "organization_name"
+    t.string "priority"
+    t.jsonb "raw_data", default: {}
+    t.string "reopens"
+    t.string "replies"
+    t.string "req_email"
+    t.string "req_external_id"
+    t.bigint "req_id"
+    t.string "req_name"
+    t.integer "requester_wait_time_in_minutes"
+    t.integer "requester_wait_time_in_minutes_within_business_hours"
+    t.string "resolution_time"
+    t.string "satisfaction_score"
+    t.datetime "solved_at"
+    t.string "status"
+    t.string "subject"
+    t.string "ticket_type"
+    t.datetime "updated_at", null: false
+    t.string "url"
+    t.string "via"
+    t.integer "zendesk_id", null: false
+    t.index ["assignee_id"], name: "index_zendesk_tickets_on_assignee_id"
+    t.index ["created_at"], name: "index_zendesk_tickets_on_created_at"
+    t.index ["domain"], name: "index_zendesk_tickets_on_domain"
+    t.index ["full_resolution_time_in_minutes"], name: "index_zendesk_tickets_on_full_resolution_time_in_minutes"
+    t.index ["generated_timestamp"], name: "index_zendesk_tickets_on_generated_timestamp"
+    t.index ["group_id"], name: "index_zendesk_tickets_on_group_id"
+    t.index ["priority"], name: "index_zendesk_tickets_on_priority"
+    t.index ["raw_data"], name: "index_zendesk_tickets_on_raw_data", using: :gin
+    t.index ["solved_at"], name: "index_zendesk_tickets_on_solved_at"
+    t.index ["status"], name: "index_zendesk_tickets_on_status"
+    t.index ["updated_at"], name: "index_zendesk_tickets_on_updated_at"
+    t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
+    t.index ["zendesk_id"], name: "index_zendesk_tickets_on_zendesk_id"
   end
 
-  create_table 'zendesk_tickets', force: :cascade do |t|
-    t.integer 'agent_wait_time_in_minutes'
-    t.integer 'agent_wait_time_in_minutes_within_business_hours'
-    t.datetime 'assigned_at'
-    t.bigint 'assignee_external_id'
-    t.bigint 'assignee_id'
-    t.string 'assignee_name'
-    t.string 'assignee_stations'
-    t.datetime 'created_at', null: false
-    t.text 'current_tags'
-    t.string 'domain', null: false
-    t.string 'due_date'
-    t.integer 'first_reply_time_in_minutes'
-    t.integer 'first_reply_time_in_minutes_within_business_hours'
-    t.integer 'first_resolution_time_in_minutes'
-    t.integer 'first_resolution_time_in_minutes_within_business_hours'
-    t.integer 'full_resolution_time_in_minutes'
-    t.integer 'full_resolution_time_in_minutes_within_business_hours'
-    t.integer 'generated_timestamp'
-    t.bigint 'group_id'
-    t.string 'group_name'
-    t.string 'group_stations'
-    t.datetime 'initially_assigned_at'
-    t.integer 'on_hold_time_in_minutes'
-    t.integer 'on_hold_time_in_minutes_within_business_hours'
-    t.string 'organization_name'
-    t.string 'priority'
-    t.jsonb 'raw_data', default: {}
-    t.string 'reopens'
-    t.string 'replies'
-    t.string 'req_email'
-    t.string 'req_external_id'
-    t.bigint 'req_id'
-    t.string 'req_name'
-    t.integer 'requester_wait_time_in_minutes'
-    t.integer 'requester_wait_time_in_minutes_within_business_hours'
-    t.string 'resolution_time'
-    t.string 'satisfaction_score'
-    t.datetime 'solved_at'
-    t.string 'status'
-    t.string 'subject'
-    t.string 'ticket_type'
-    t.datetime 'updated_at', null: false
-    t.string 'url'
-    t.string 'via'
-    t.integer 'zendesk_id', null: false
-    t.index ['assignee_id'], name: 'index_zendesk_tickets_on_assignee_id'
-    t.index ['created_at'], name: 'index_zendesk_tickets_on_created_at'
-    t.index ['domain'], name: 'index_zendesk_tickets_on_domain'
-    t.index ['full_resolution_time_in_minutes'], name: 'index_zendesk_tickets_on_full_resolution_time_in_minutes'
-    t.index ['generated_timestamp'], name: 'index_zendesk_tickets_on_generated_timestamp'
-    t.index ['group_id'], name: 'index_zendesk_tickets_on_group_id'
-    t.index ['priority'], name: 'index_zendesk_tickets_on_priority'
-    t.index ['raw_data'], name: 'index_zendesk_tickets_on_raw_data', using: :gin
-    t.index ['solved_at'], name: 'index_zendesk_tickets_on_solved_at'
-    t.index ['status'], name: 'index_zendesk_tickets_on_status'
-    t.index ['updated_at'], name: 'index_zendesk_tickets_on_updated_at'
-    t.index %w[zendesk_id domain], name: 'index_zendesk_tickets_on_zendesk_id_and_domain', unique: true
-    t.index ['zendesk_id'], name: 'index_zendesk_tickets_on_zendesk_id'
-  end
-
-  add_foreign_key 'solid_queue_blocked_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
-  add_foreign_key 'solid_queue_claimed_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
-  add_foreign_key 'solid_queue_failed_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
-  add_foreign_key 'solid_queue_ready_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
-  add_foreign_key 'solid_queue_recurring_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
-  add_foreign_key 'solid_queue_scheduled_executions', 'solid_queue_jobs', column: 'job_id', on_delete: :cascade
+  add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
 end
