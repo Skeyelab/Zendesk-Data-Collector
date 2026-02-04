@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_30_043532) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -61,54 +61,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_043532) do
     t.integer "wait_till_event"
     t.index ["active", "queued"], name: "index_desks_on_active_and_queued"
     t.index ["domain"], name: "index_desks_on_domain", unique: true
-  end
-
-  create_table "geets_zendesk_com", id: :serial, force: :cascade do |t|
-    t.integer "agent_wait_time_in_minutes"
-    t.integer "agent_wait_time_in_minutes_within_business_hours"
-    t.datetime "assigned_at"
-    t.bigint "assignee_external_id"
-    t.bigint "assignee_id"
-    t.string "assignee_name", limit: 64
-    t.string "assignee_stations", limit: 255
-    t.datetime "created_at"
-    t.string "current_tags", limit: 1024
-    t.string "domain", limit: 255
-    t.string "due_date", limit: 255
-    t.string "field_76108047", limit: 255
-    t.integer "first_reply_time_in_minutes"
-    t.integer "first_reply_time_in_minutes_within_business_hours"
-    t.integer "first_resolution_time_in_minutes"
-    t.integer "first_resolution_time_in_minutes_within_business_hours"
-    t.integer "full_resolution_time_in_minutes"
-    t.integer "full_resolution_time_in_minutes_within_business_hours"
-    t.integer "generated_timestamp"
-    t.bigint "group_id"
-    t.string "group_name", limit: 64
-    t.string "group_stations", limit: 255
-    t.datetime "initially_assigned_at"
-    t.integer "on_hold_time_in_minutes"
-    t.integer "on_hold_time_in_minutes_within_business_hours"
-    t.string "organization_name", limit: 64
-    t.string "priority", limit: 255
-    t.string "reopens", limit: 255
-    t.string "replies", limit: 255
-    t.string "req_email", limit: 255
-    t.string "req_external_id", limit: 64
-    t.bigint "req_id"
-    t.string "req_name", limit: 64
-    t.integer "requester_wait_time_in_minutes"
-    t.integer "requester_wait_time_in_minutes_within_business_hours"
-    t.string "resolution_time", limit: 255
-    t.string "satisfaction_score", limit: 255
-    t.datetime "solved_at"
-    t.string "status", limit: 255
-    t.string "subject", limit: 255
-    t.string "submitter_name", limit: 64
-    t.string "ticket_type", limit: 255
-    t.datetime "updated_at"
-    t.string "url", limit: 255
-    t.string "via", limit: 255
   end
 
   create_table "incremental_export_requests", force: :cascade do |t|

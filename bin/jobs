@@ -1,18 +1,18 @@
 #!/usr/bin/env ruby
 
-require_relative "../config/environment"
+require_relative '../config/environment'
 
-require "solid_queue/cli"
+require 'solid_queue/cli'
 
 # Establish ActiveRecord connection before SolidQueue starts
 # This helps prevent connection issues
 begin
   ActiveRecord::Base.connection_pool.disconnect! if ActiveRecord::Base.connection_pool
   ActiveRecord::Base.establish_connection
-  ActiveRecord::Base.connection.execute("SELECT 1")
-rescue => e
-  STDERR.puts "Warning: Failed to establish database connection: #{e.class} - #{e.message}"
-  STDERR.puts e.backtrace.first(3).join("\n") if e.backtrace
+  ActiveRecord::Base.connection.execute('SELECT 1')
+rescue StandardError => e
+  warn "Warning: Failed to establish database connection: #{e.class} - #{e.message}"
+  warn e.backtrace.first(3).join("\n") if e.backtrace
 end
 
 SolidQueue::Cli.start(ARGV)

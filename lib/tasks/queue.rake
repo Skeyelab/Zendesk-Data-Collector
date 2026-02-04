@@ -7,9 +7,7 @@ namespace :queue do
     # Check for active workers
     active_workers = SolidQueue::Process.where("last_heartbeat_at > ?", 1.minute.ago).count
     puts "Active Workers: #{active_workers}"
-    if active_workers == 0
-      puts "  ⚠️  WARNING: No active workers detected! Jobs won't be processed."
-    end
+    puts "  ⚠️  WARNING: No active workers detected! Jobs won't be processed." if active_workers == 0
     puts
 
     # Failed jobs

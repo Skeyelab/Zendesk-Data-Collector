@@ -8,8 +8,8 @@ end
 ruby "3.2.4"
 
 # Rails 8
+gem "dotenv-rails", groups: %i[development test]
 gem "rails", "~> 8.0"
-gem "dotenv-rails", groups: [:development, :test]
 
 # Database
 gem "pg", "~> 1.5"
@@ -21,13 +21,13 @@ gem "puma", "~> 6.0"
 gem "propshaft"
 
 # Background jobs
-gem "solid_queue"
 gem "mission_control-jobs"
+gem "solid_queue"
 
 # Admin interface
 gem "avo", "~> 3.0"
-gem "ransack"
 gem "chartkick"
+gem "ransack"
 
 # Authentication
 gem "devise"
@@ -42,23 +42,23 @@ gem "zendesk_api"
 gem "jbuilder", "~> 2.13"
 
 group :development, :test do
-  gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
+  gem "byebug", platforms: %i[mri mingw x64_mingw]
 end
 
 group :development do
+  gem "foreman"
   gem "pry-rails"
   gem "seed_dump"
-  gem "foreman"
   gem "standard"
 end
 
 group :test do
+  gem "capybara"
   gem "rspec-rails"
+  gem "selenium-webdriver"
   gem "simplecov", require: false
   gem "webmock"
-  gem "capybara"
-  gem "selenium-webdriver"
 end
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]
+gem "tzinfo-data", platforms: %i[mingw mswin x64_mingw jruby]

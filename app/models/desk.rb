@@ -5,14 +5,14 @@ class Desk < ApplicationRecord
   validates :user, presence: true
   validates :token, presence: true
 
-  scope :readyToGo, -> {
+  scope :readyToGo, lambda {
     current_time = Time.now.to_i
     where("last_timestamp <= ? AND wait_till < ? AND active = ? AND queued = ?",
       current_time - 300, current_time, true, false)
   }
 
   # Reset queued flag for desks that have been queued for too long (likely stuck)
-  scope :stuck_queued, -> {
+  scope :stuck_queued, lambda {
     where(queued: true, active: true)
       .where("updated_at < ?", 5.minutes.ago)
   }
