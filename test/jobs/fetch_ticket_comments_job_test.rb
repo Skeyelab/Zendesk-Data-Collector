@@ -13,12 +13,12 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     )
 
     @ticket = ZendeskTicket.create!(
-      zendesk_id: 12345,
+      zendesk_id: 12_345,
       domain: "test.zendesk.com",
       subject: "Test Ticket",
       status: "open",
       raw_data: {
-        "id" => 12345,
+        "id" => 12_345,
         "subject" => "Test Ticket",
         "status" => "open"
       }
@@ -44,7 +44,7 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
         html_body: "<p>This is the first comment</p>",
         plain_body: "This is the first comment",
         public: true,
-        author_id: 12345,
+        author_id: 12_345,
         created_at: "2024-01-01T10:00:00Z"
       },
       {
@@ -54,14 +54,14 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
         html_body: "<p>This is the second comment</p>",
         plain_body: "This is the second comment",
         public: false,
-        author_id: 67890,
+        author_id: 67_890,
         created_at: "2024-01-02T11:00:00Z"
       }
     ]
 
-    stub_comments_api(12345, comments_data)
+    stub_comments_api(12_345, comments_data)
 
-    FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     assert_not_nil @ticket.raw_data["comments"]
@@ -75,15 +75,15 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
   test "should handle missing ticket gracefully" do
     # Should not raise an error, just log a warning
     assert_nothing_raised do
-      FetchTicketCommentsJob.perform_now(99999, @desk.id, "test.zendesk.com")
+      FetchTicketCommentsJob.perform_now(99_999, @desk.id, "test.zendesk.com")
     end
   end
 
   test "should handle API errors gracefully" do
-    stub_comments_api(12345, [], status: 500)
+    stub_comments_api(12_345, [], status: 500)
 
     assert_nothing_raised do
-      FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -119,7 +119,7 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       )
 
     assert_nothing_raised do
-      FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @desk.reload
@@ -134,9 +134,9 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
   end
 
   test "should handle empty comments response" do
-    stub_comments_api(12345, [])
+    stub_comments_api(12_345, [])
 
-    FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Should not crash, but comments may or may not be set
@@ -146,7 +146,7 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
   test "should preserve existing raw_data when updating comments" do
     # Set some existing data in raw_data
     @ticket.update_columns(raw_data: {
-      "id" => 12345,
+      "id" => 12_345,
       "subject" => "Test Ticket",
       "status" => "open",
       "priority" => "high",
@@ -161,9 +161,9 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       }
     ]
 
-    stub_comments_api(12345, comments_data)
+    stub_comments_api(12_345, comments_data)
 
-    FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
     # Should preserve existing fields
@@ -188,7 +188,7 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       )
 
     assert_nothing_raised do
-      FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload
@@ -202,7 +202,7 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       .to_raise(StandardError.new("Network error"))
 
     assert_nothing_raised do
-      FetchTicketCommentsJob.perform_now(12345, @desk.id, "test.zendesk.com")
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
     @ticket.reload

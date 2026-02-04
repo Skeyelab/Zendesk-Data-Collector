@@ -3,7 +3,7 @@ require "test_helper"
 class ZendeskTicketTest < ActiveSupport::TestCase
   def setup
     @ticket_data = {
-      zendesk_id: 12345,
+      zendesk_id: 12_345,
       domain: "test.zendesk.com",
       subject: "Test Ticket",
       status: "open",
@@ -15,7 +15,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
   test "should create ticket with required fields" do
     ticket = ZendeskTicket.create!(@ticket_data)
     assert ticket.persisted?
-    assert_equal 12345, ticket.zendesk_id
+    assert_equal 12_345, ticket.zendesk_id
     assert_equal "test.zendesk.com", ticket.domain
     assert_equal "Test Ticket", ticket.subject
   end
@@ -36,14 +36,14 @@ class ZendeskTicketTest < ActiveSupport::TestCase
 
   test "should allow dynamic fields from Zendesk API via raw_data" do
     ticket_hash = {
-      "id" => 12345,
+      "id" => 12_345,
       "domain" => "test.zendesk.com",
       "subject" => "Test Ticket",
       "status" => "open",
       "req_name" => "John Doe",
       "req_email" => "john@example.com",
       "assignee_name" => "Jane Smith",
-      "tags" => ["urgent", "important"],
+      "tags" => %w[urgent important],
       "first_reply_time_in_minutes" => 30,
       "custom_field_123" => "custom_value"
     }
@@ -122,7 +122,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
 
     test_tickets = ZendeskTicket.where(domain: "test.zendesk.com")
     assert_equal 2, test_tickets.count
-    assert test_tickets.all? { |t| t.domain == "test.zendesk.com" }
+    assert(test_tickets.all? { |t| t.domain == "test.zendesk.com" })
   end
 
   test "should handle timestamp fields" do
@@ -144,12 +144,12 @@ class ZendeskTicketTest < ActiveSupport::TestCase
       domain: "test.zendesk.com",
       first_reply_time_in_minutes: 45,
       first_resolution_time_in_minutes: 120,
-      assignee_id: 12345
+      assignee_id: 12_345
     )
 
     assert_equal 45, ticket.first_reply_time_in_minutes
     assert_equal 120, ticket.first_resolution_time_in_minutes
-    assert_equal 12345, ticket.assignee_id
+    assert_equal 12_345, ticket.assignee_id
   end
 
   test "should handle string fields with various lengths" do
@@ -374,7 +374,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
       "reopens" => 2,
       "replies" => 3,
       "reply_time_in_seconds" => {
-        "calendar" => 30000
+        "calendar" => 30_000
       }
     }
 
@@ -419,7 +419,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
 
     metrics_data = {
       "reply_time_in_seconds" => {
-        "calendar" => 30000
+        "calendar" => 30_000
       }
     }
 
@@ -428,7 +428,7 @@ class ZendeskTicketTest < ActiveSupport::TestCase
 
     # reply_time_in_seconds should be in raw_data but not extracted to columns
     assert_not_nil ticket.raw_data["metrics"]["reply_time_in_seconds"]
-    assert_equal 30000, ticket.raw_data["metrics"]["reply_time_in_seconds"]["calendar"]
+    assert_equal 30_000, ticket.raw_data["metrics"]["reply_time_in_seconds"]["calendar"]
     # Should not have a column for this
     begin
       assert_nil ticket.read_attribute(:reply_time_in_seconds)
