@@ -69,7 +69,7 @@ class CreateZendeskTickets < ActiveRecord::Migration[8.1]
     end
 
     # Indexes for common queries
-    add_index :zendesk_tickets, [:zendesk_id, :domain], unique: true
+    add_index :zendesk_tickets, %i[zendesk_id domain], unique: true
     add_index :zendesk_tickets, :zendesk_id
     add_index :zendesk_tickets, :domain
     add_index :zendesk_tickets, :generated_timestamp

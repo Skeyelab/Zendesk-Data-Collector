@@ -22,10 +22,10 @@ class ZendeskRateLimitHandlerTest < ActiveJob::TestCase
     faraday_error = build_faraday_error_with_retry_after(42)
 
     job = DummyRateLimitJob.new
-    job.send(:handle_rate_limit_error, faraday_error, @desk, 326750, 0, 3)
+    job.send(:handle_rate_limit_error, faraday_error, @desk, 326_750, 0, 3)
 
     @desk.reload
-    expected_min = Time.now.to_i + 41  # 42 + 0 retry_count, allow 1s drift
+    expected_min = Time.now.to_i + 41 # 42 + 0 retry_count, allow 1s drift
     expected_max = Time.now.to_i + 45
     assert @desk.wait_till >= expected_min, "wait_till #{@desk.wait_till} should be >= #{expected_min} (Retry-After 42)"
     assert @desk.wait_till <= expected_max, "wait_till #{@desk.wait_till} should be <= #{expected_max}"

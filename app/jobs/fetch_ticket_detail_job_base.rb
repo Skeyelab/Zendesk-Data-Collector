@@ -28,21 +28,21 @@ class FetchTicketDetailJobBase < ApplicationJob
   end
 
   def apply_throttle(ticket_id, desk)
-    sleep_duration = ENV.fetch(delay_env_var, '0').to_f
+    sleep_duration = ENV.fetch(delay_env_var, "0").to_f
     return unless sleep_duration > 0
 
     job_log(:info,
-            "[#{job_name}] Applying throttle delay: #{sleep_duration}s before API call for ticket #{ticket_id} (desk: #{desk.domain})")
+      "[#{job_name}] Applying throttle delay: #{sleep_duration}s before API call for ticket #{ticket_id} (desk: #{desk.domain})")
     sleep(sleep_duration)
   end
 
-  def fetch_and_persist(ticket_id, desk_id, domain, desk, ticket)
+  def fetch_and_persist(ticket_id, _desk_id, _domain, desk, ticket)
     client = ZendeskClientService.connect(desk)
     retry_count = 0
 
     begin
       job_log(:info,
-              "[#{job_name}] Fetching #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain}, retry: #{retry_count}/#{MAX_RETRIES})")
+        "[#{job_name}] Fetching #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain}, retry: #{retry_count}/#{MAX_RETRIES})")
 
       response = client.connection.get(api_path(ticket_id))
       throttle_using_rate_limit_headers(response.respond_to?(:env) ? response.env : response)
@@ -56,12 +56,12 @@ class FetchTicketDetailJobBase < ApplicationJob
 
         if retry_count > MAX_RETRIES
           job_log(:warn,
-                  "[#{job_name}] ✗ Max retries reached for ticket #{ticket_id} (desk: #{desk.domain}), skipping #{resource_name}")
+            "[#{job_name}] ✗ Max retries reached for ticket #{ticket_id} (desk: #{desk.domain}), skipping #{resource_name}")
           return
         end
 
         job_log(:info, "[#{job_name}] Retrying ticket #{ticket_id} (attempt #{retry_count + 1}/#{MAX_RETRIES + 1})")
-        raise 'Rate limit exceeded (429), retrying'
+        raise "Rate limit exceeded (429), retrying"
       end
 
       response_body = parse_response_body(response)
@@ -71,36 +71,36 @@ class FetchTicketDetailJobBase < ApplicationJob
         log_received(ticket_id, data)
         persist_data(ticket, data)
         job_log(:info,
-                "[#{job_name}] ✓ Successfully stored #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain})")
+          "[#{job_name}] ✓ Successfully stored #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain})")
       else
         job_log(:info, "[#{job_name}] No #{resource_name} found for ticket #{ticket_id} (desk: #{desk.domain})")
       end
-    rescue StandardError => e
+    rescue => e
       # Re-raise from 429 response path – we already handled it, just retry the begin block
-      retry if e.message == 'Rate limit exceeded (429), retrying'
+      retry if e.message == "Rate limit exceeded (429), retrying"
 
-      is_rate_limit = e.message.include?('status 429') || e.message.include?('429') || e.message.include?('Rate limit exceeded')
+      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
 
       if is_rate_limit
         job_log(:warn,
-                "[#{job_name}] ⚠️  Rate limit error caught for ticket #{ticket_id} (desk: #{desk.domain}): #{e.message}")
+          "[#{job_name}] ⚠️  Rate limit error caught for ticket #{ticket_id} (desk: #{desk.domain}): #{e.message}")
         response_from_error = extract_response_from_error(e)
         handle_rate_limit_error(response_from_error || e, desk, ticket_id, retry_count, MAX_RETRIES)
         retry_count += 1
 
         if retry_count <= MAX_RETRIES
           job_log(:info,
-                  "[#{job_name}] Retrying ticket #{ticket_id} after rate limit (attempt #{retry_count + 1}/#{MAX_RETRIES + 1})")
+            "[#{job_name}] Retrying ticket #{ticket_id} after rate limit (attempt #{retry_count + 1}/#{MAX_RETRIES + 1})")
           retry
         else
           job_log(:warn,
-                  "[#{job_name}] ✗ Max retries reached for ticket #{ticket_id} (desk: #{desk.domain}) after rate limit, skipping #{resource_name}")
+            "[#{job_name}] ✗ Max retries reached for ticket #{ticket_id} (desk: #{desk.domain}) after rate limit, skipping #{resource_name}")
           return
         end
       end
 
       job_log(:warn,
-              "[#{job_name}] ✗ Error fetching #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain}): #{e.class}: #{e.message}")
+        "[#{job_name}] ✗ Error fetching #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain}): #{e.class}: #{e.message}")
       Rails.logger.debug("[#{job_name}] Backtrace: #{e.backtrace&.first(3)&.join("\n")}")
     end
   end

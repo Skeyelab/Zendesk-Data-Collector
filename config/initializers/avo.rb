@@ -27,7 +27,5 @@ Avo.configure do |config|
 
   # In production, use STDOUT for logging (Docker-friendly)
   # In development/test, Avo will use its default file logger
-  if Rails.env.production? && ENV["RAILS_LOG_TO_STDOUT"].present?
-    config.logger = ActiveSupport::Logger.new($stdout)
-  end
+  config.logger = ActiveSupport::Logger.new($stdout) if Rails.env.production? && ENV["RAILS_LOG_TO_STDOUT"].present?
 end

@@ -14,8 +14,9 @@ class ZendeskTicket < ApplicationRecord
   scope :recent, -> { order(generated_timestamp: :desc) }
 
   # Ransack configuration for Avo search
-  def self.ransackable_attributes(auth_object = nil)
-    %w[zendesk_id domain subject status priority ticket_type req_name req_email req_id assignee_name assignee_id group_name group_id organization_name]
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[zendesk_id domain subject status priority ticket_type req_name req_email req_id assignee_name assignee_id
+      group_name group_id organization_name]
   end
 
   # Access dynamic fields from raw_data
@@ -25,9 +26,8 @@ class ZendeskTicket < ApplicationRecord
     # Check if it's a getter (no args, no block, not assignment)
     if args.empty? && !block_given? && !method_str.end_with?("=")
       # Try raw_data first
-      if raw_data.is_a?(Hash) && raw_data.key?(method_str)
-        return raw_data[method_str]
-      end
+      return raw_data[method_str] if raw_data.is_a?(Hash) && raw_data.key?(method_str)
+
       # Try with underscore (e.g., created_at vs createdAt)
       if raw_data.is_a?(Hash)
         underscored_key = raw_data.keys.find { |k| k.to_s.underscore == method_str }
@@ -39,7 +39,7 @@ class ZendeskTicket < ApplicationRecord
 
   def respond_to_missing?(method, include_private = false)
     method_str = method.to_s
-    if !method_str.end_with?("=")
+    unless method_str.end_with?("=")
       return true if raw_data.is_a?(Hash) && raw_data.key?(method_str)
       return true if raw_data.is_a?(Hash) && raw_data.keys.any? { |k| k.to_s.underscore == method_str }
     end
@@ -77,11 +77,11 @@ class ZendeskTicket < ApplicationRecord
       "requester_id" => :req_id,
       "assignee_id" => :assignee_id,
       "group_id" => :group_id,
-      "organization_id" => ->(val) {
+      "organization_id" => lambda { |val|
         # Store organization_id in raw_data if we ever add the column
         # For now, it's accessible via raw_data
       },
-      "submitter_id" => ->(val) {
+      "submitter_id" => lambda { |val|
         # Store submitter_id in raw_data (not extracted to column yet)
       },
       # Support flat field names (for backward compatibility)
@@ -125,15 +125,15 @@ class ZendeskTicket < ApplicationRecord
     # Process each field
     ticket_hash.each do |key, value|
       key_str = key.to_s
-      next if key_str == "id" || key_str == "domain"
+      next if %w[id domain].include?(key_str)
 
-      if field_mappings.key?(key_str)
-        mapping = field_mappings[key_str]
-        if mapping.is_a?(Symbol)
-          self[mapping] = value
-        elsif mapping.is_a?(Proc)
-          mapping.call(value)
-        end
+      next unless field_mappings.key?(key_str)
+
+      mapping = field_mappings[key_str]
+      if mapping.is_a?(Symbol)
+        self[mapping] = value
+      elsif mapping.is_a?(Proc)
+        mapping.call(value)
       end
     end
 
@@ -161,18 +161,28 @@ class ZendeskTicket < ApplicationRecord
     parse_time_field(metrics_hash["initially_assigned_at"], :initially_assigned_at)
     # Only parse these if columns exist (they may have been removed)
     parse_time_field(metrics_hash["status_updated_at"], :status_updated_at) if respond_to?(:status_updated_at=)
-    parse_time_field(metrics_hash["latest_comment_added_at"], :latest_comment_added_at) if respond_to?(:latest_comment_added_at=)
+    if respond_to?(:latest_comment_added_at=)
+      parse_time_field(metrics_hash["latest_comment_added_at"],
+        :latest_comment_added_at)
+    end
     parse_time_field(metrics_hash["requester_updated_at"], :requester_updated_at) if respond_to?(:requester_updated_at=)
     parse_time_field(metrics_hash["assignee_updated_at"], :assignee_updated_at) if respond_to?(:assignee_updated_at=)
-    parse_time_field(metrics_hash["custom_status_updated_at"], :custom_status_updated_at) if respond_to?(:custom_status_updated_at=)
+    if respond_to?(:custom_status_updated_at=)
+      parse_time_field(metrics_hash["custom_status_updated_at"],
+        :custom_status_updated_at)
+    end
     parse_time_field(metrics_hash["created_at"], :created_at)
     parse_time_field(metrics_hash["updated_at"], :updated_at)
 
     # Store count fields (schema has them as strings, so convert to string)
     self.reopens = metrics_hash["reopens"].to_s if metrics_hash.key?("reopens") && metrics_hash["reopens"]
     self.replies = metrics_hash["replies"].to_s if metrics_hash.key?("replies") && metrics_hash["replies"]
-    self.assignee_stations = metrics_hash["assignee_stations"].to_s if metrics_hash.key?("assignee_stations") && metrics_hash["assignee_stations"]
-    self.group_stations = metrics_hash["group_stations"].to_s if metrics_hash.key?("group_stations") && metrics_hash["group_stations"]
+    if metrics_hash.key?("assignee_stations") && metrics_hash["assignee_stations"]
+      self.assignee_stations = metrics_hash["assignee_stations"].to_s
+    end
+    if metrics_hash.key?("group_stations") && metrics_hash["group_stations"]
+      self.group_stations = metrics_hash["group_stations"].to_s
+    end
 
     # Store full metrics in raw_data
     self.raw_data = (raw_data || {}).merge("metrics" => metrics_hash.deep_stringify_keys)

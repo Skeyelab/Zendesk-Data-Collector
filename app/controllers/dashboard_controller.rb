@@ -20,7 +20,7 @@ class DashboardController < ApplicationController
       # Calculate from solved/closed tickets using updated_at as proxy for resolution time
       # Note: This is approximate since incremental API doesn't include metric fields
       solved_tickets = ZendeskTicket
-        .where(status: ["solved", "closed"])
+        .where(status: %w[solved closed])
         .where.not(created_at: nil)
         .where.not(updated_at: nil)
 
