@@ -45,6 +45,7 @@ class ZendeskProxyJob < ApplicationJob
 
       # Proxy completed; we don't persist to ZendeskTicket
       Rails.logger.info "[ZendeskProxyJob] #{method.upcase} #{path} completed with status #{status}"
+      [status, parse_response_body(response)] if method.to_s.downcase == "get"
     rescue => e
       retry if e.message == "Rate limit exceeded (429), retrying"
 

@@ -25,13 +25,27 @@ module Webhooks
         return render json: {error: "method must be get, put, or post"}, status: :unprocessable_entity
       end
 
+      if %w[put post].include?(method) && body.blank?
+        return render json: {error: "body is required for put/post"}, status: :unprocessable_entity
+      end
+
       if method != "post" && ticket_id.blank?
         return render json: {error: "ticket_id is required for get/put"}, status: :unprocessable_entity
       end
 
       ticket_id = ticket_id.to_i if ticket_id.present?
-      ZendeskProxyJob.perform_later(domain.to_s, method, ticket_id, body)
-      render json: {status: "accepted"}, status: :accepted
+
+      if method == "get"
+        result = ZendeskProxyJob.perform_now(domain.to_s, method, ticket_id, body)
+        if result
+          render json: result[1], status: result[0]
+        else
+          render json: {error: "Proxy request failed"}, status: :service_unavailable
+        end
+      else
+        ZendeskProxyJob.perform_later(domain.to_s, method, ticket_id, body)
+        render json: {status: "accepted"}, status: :accepted
+      end
     end
 
     private
