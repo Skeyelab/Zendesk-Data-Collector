@@ -274,10 +274,10 @@ This application is deployed using Docker and Docker Compose. See [DEPLOYMENT.md
 - Admin user setup with automatic seeding
 
 Available Docker Compose configurations:
-- `docker-compose.yml` - Production deployment with external PostgreSQL
-- `docker-compose-coolify.yml` - Coolify deployment with internal PostgreSQL
+- `docker-compose.yml` - Standard deployment with internal PostgreSQL (includes postgres, web, worker, migrate, seed services)
+- `docker-compose-coolify.yml` - Coolify-optimized deployment with internal PostgreSQL and Coolify magic variables (includes postgres, web, worker, migrate, seed services)
 
-**Note**: The DEPLOYMENT.md file may mention MongoDB options and additional docker-compose files, but these are outdated. The application **only uses PostgreSQL** (no MongoDB), and only the two compose files listed above exist in the repository.
+**Note**: The DEPLOYMENT.md file is outdated and references MongoDB configurations and additional docker-compose files that do not exist. The application **only uses PostgreSQL** (no MongoDB), and only the two compose files listed above exist in the repository.
 
 ## Reporting & Analytics
 
@@ -332,26 +332,26 @@ ORDER BY full_resolution_time_in_minutes DESC;
 ### Local Setup
 
 The repository includes two Docker Compose configurations:
-- `docker-compose.yml` - Production deployment (requires external PostgreSQL)
-- `docker-compose-coolify.yml` - Coolify deployment with internal PostgreSQL
+- `docker-compose.yml` - Standard deployment with internal PostgreSQL
+- `docker-compose-coolify.yml` - Coolify-optimized deployment with internal PostgreSQL and Coolify magic variables
 
-For local development, use `docker-compose-coolify.yml`:
+For local development, use `docker-compose.yml`:
 
 ```bash
 # Start all services (PostgreSQL, Rails, worker)
-docker-compose -f docker-compose-coolify.yml up
+docker-compose up
 
 # Run migrations (in another terminal)
-docker-compose -f docker-compose-coolify.yml run web rails db:migrate
+docker-compose run web rails db:migrate
 
 # Run tests
-docker-compose -f docker-compose-coolify.yml run web rails test
+docker-compose run web rails test
 
 # Run console
-docker-compose -f docker-compose-coolify.yml run web rails console
+docker-compose run web rails console
 
 # Check code style
-docker-compose -f docker-compose-coolify.yml run web bundle exec standardrb
+docker-compose run web bundle exec standardrb
 ```
 
 **Environment Variables for Local Development:**
@@ -369,6 +369,8 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=zd_desk_data_collector_development
 ```
+
+**Note**: The `docker-compose.yml` file is configured to automatically construct the `DATABASE_URL` from these PostgreSQL environment variables, so you don't need to set `DATABASE_URL` explicitly for local development.
 
 ### Running Tests
 
