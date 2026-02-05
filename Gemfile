@@ -5,7 +5,7 @@ git_source(:github) do |repo_name|
   "https://github.com/#{repo_name}.git"
 end
 
-ruby "3.2.4"
+ruby "~> 3.2.0"
 
 # Rails 8
 gem "dotenv-rails", groups: %i[development test]
