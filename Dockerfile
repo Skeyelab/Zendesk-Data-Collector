@@ -84,5 +84,5 @@ USER appuser
 # Expose port
 EXPOSE 3000
 
-# Default command (can be overridden in docker-compose)
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+# Default command (puma is on PATH via GEM_HOME/bin)
+CMD ["puma", "-C", "config/puma.rb"]
