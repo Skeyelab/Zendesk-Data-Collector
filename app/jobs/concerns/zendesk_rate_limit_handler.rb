@@ -47,8 +47,7 @@ module ZendeskRateLimitHandler
     return {} unless response.respond_to?(:body)
 
     body = response.body
-    return {} if body.nil?
-    return {} if body.to_s.strip.empty?
+    return {} if body.nil? || body.to_s.strip.empty?
 
     body.is_a?(Hash) ? body : JSON.parse(body.to_s)
   end
