@@ -5,12 +5,13 @@ class ZendeskProxyJob < ApplicationJob
   include ZendeskRateLimitHandler
 
   MAX_RETRIES = 3
+  SYNC_REQUEST_TIMEOUT = 30 # Seconds for synchronous requests
 
   queue_as :proxy
 
-  # method: "get" | "put" | "post"
-  # ticket_id: required for get/put, nil for post (create)
-  # body: hash for put/post request body (e.g. { ticket: { status: "solved" } })
+  # method: "get" | "put" | "post" | "patch" | "delete"
+  # ticket_id: required for get/put/patch/delete, nil for post (create)
+  # body: hash for put/post/patch request body (e.g. { ticket: { status: "solved" } })
   def perform(domain, method, ticket_id = nil, body = nil)
     desk = Desk.find_by(domain: domain)
     unless desk
@@ -40,12 +41,17 @@ class ZendeskProxyJob < ApplicationJob
         retry_count += 1
         raise "Rate limit exceeded (429), retrying" if retry_count <= MAX_RETRIES
 
+        Rails.logger.warn "[ZendeskProxyJob] Max retries reached for #{method.upcase} #{path} after rate limit"
+        return [429, {error: "Rate limit exceeded, max retries reached"}] if %w[get delete].include?(method.to_s.downcase)
         return
       end
 
-      # Proxy completed; we don't persist to ZendeskTicket
-      Rails.logger.info "[ZendeskProxyJob] #{method.upcase} #{path} completed with status #{status}"
-      [status, parse_response_body(response)] if method.to_s.downcase == "get"
+      # Log successful operations with details
+      response_body = parse_response_body(response)
+      Rails.logger.info "[ZendeskProxyJob] #{method.upcase} #{path} completed with status #{status} (desk: #{desk.domain})"
+
+      # Return response for GET and DELETE operations
+      [status, response_body] if %w[get delete].include?(method.to_s.downcase)
     rescue => e
       retry if e.message == "Rate limit exceeded (429), retrying"
 
@@ -56,22 +62,57 @@ class ZendeskProxyJob < ApplicationJob
         retry_count += 1
         retry
       end
+
+      # Log detailed error information
+      Rails.logger.error "[ZendeskProxyJob] Error in #{method.upcase} #{path}: #{e.class.name} - #{e.message}"
+      Rails.logger.error "[ZendeskProxyJob] Backtrace: #{e.backtrace.first(5).join("\n")}"
+
+      # For synchronous operations, return error details
+      if %w[get delete].include?(method.to_s.downcase)
+        error_status = extract_error_status(e) || 500
+        error_body = {
+          error: e.message,
+          error_class: e.class.name
+        }
+        return [error_status, error_body]
+      end
+
       raise
     end
   end
 
   private
 
+  # Extract HTTP status from error when available
+  def extract_error_status(error)
+    if error.respond_to?(:response) && error.response.respond_to?(:status)
+      return error.response.status
+    end
+
+    # Try to extract from Faraday error env
+    if error.respond_to?(:response) && error.response.is_a?(Hash)
+      return error.response[:status] if error.response[:status]
+    end
+
+    # Check message for status codes
+    return 404 if error.message.include?("404") || error.message.include?("Not Found")
+    return 403 if error.message.include?("403") || error.message.include?("Forbidden")
+    return 401 if error.message.include?("401") || error.message.include?("Unauthorized")
+    return 422 if error.message.include?("422") || error.message.include?("Unprocessable")
+
+    nil
+  end
+
   def build_path(method, ticket_id)
     case method.to_s.downcase
     when "post"
       "/api/v2/tickets.json"
-    when "get", "put"
+    when "get", "put", "patch", "delete"
       raise ArgumentError, "ticket_id required for #{method}" if ticket_id.blank?
 
       "/api/v2/tickets/#{ticket_id}.json"
     else
-      raise ArgumentError, "method must be get, put, or post"
+      raise ArgumentError, "method must be get, put, post, patch, or delete"
     end
   end
 
@@ -84,15 +125,29 @@ class ZendeskProxyJob < ApplicationJob
       client.connection.put(path, payload)
     when "post"
       client.connection.post(path, payload)
+    when "patch"
+      # PATCH is recommended by Zendesk for partial updates
+      client.connection.patch(path, payload)
+    when "delete"
+      client.connection.delete(path)
     else
-      raise ArgumentError, "method must be get, put, or post"
+      raise ArgumentError, "method must be get, put, post, patch, or delete"
     end
   end
 
   def normalize_body(body)
     return {} if body.nil?
     return body if body.is_a?(Hash)
-    return JSON.parse(body) if body.is_a?(String)
+
+    # Handle JSON string
+    if body.is_a?(String)
+      begin
+        return JSON.parse(body)
+      rescue JSON::ParserError => e
+        Rails.logger.warn "[ZendeskProxyJob] Failed to parse body as JSON: #{e.message}"
+        return {}
+      end
+    end
 
     {}
   end
