@@ -52,7 +52,9 @@ FROM base AS production
 COPY Gemfile Gemfile.lock ./
 
 # Install gems without development and test groups
-RUN bundle install --without development test && \
+# Bundler 4.x requires using config instead of --without flag
+RUN bundle config set --local without 'development test' && \
+    bundle install && \
     rm -rf ~/.bundle && \
     find /usr/local/bundle/gems -name "*.git" -type d -exec rm -rf {} + 2>/dev/null || true
 
