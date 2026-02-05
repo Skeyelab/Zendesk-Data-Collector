@@ -99,6 +99,16 @@ class ZendeskRateLimitHandlerTest < ActiveJob::TestCase
     assert_equal({}, job.send(:parse_response_body, response))
   end
 
+  test "parse_response_body returns empty Hash for empty or blank body (e.g. 204 No Content)" do
+    job = DummyRateLimitJob.new
+    ["", "   ", "\n"].each do |blank_body|
+      response = Object.new
+      response.define_singleton_method(:body) { blank_body }
+      response.define_singleton_method(:respond_to?) { |m| m == :body || (super(m) if defined?(super)) }
+      assert_equal({}, job.send(:parse_response_body, response), "blank body #{blank_body.inspect} should return {}")
+    end
+  end
+
   test "does not log Retry-After header not found when header is present in Faraday exception" do
     faraday_error = build_faraday_error_with_retry_after(42)
     warn_messages = []
