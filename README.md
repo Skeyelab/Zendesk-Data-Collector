@@ -105,9 +105,9 @@ The application uses four main jobs:
    - Can be disabled per desk with `fetch_metrics` flag
 
 4. **ZendeskProxyJob** (queued: proxy)
-   - Proxies a single Zendesk API call (GET/PUT/POST tickets) from the webhook endpoint
+   - Proxies a single Zendesk API call (GET/PUT/POST/PATCH/DELETE for tickets or users) from the webhook endpoint
    - Uses the same rate limit handling as other Zendesk jobs
-   - Does **not** create or update `ZendeskTicket` rows—only forwards the request to Zendesk
+   - Does **not** create or update database rows—only forwards the request to Zendesk and returns the response
 
 ### Job Priority System
 
@@ -126,53 +126,61 @@ This allows you to prioritize processing of active tickets if needed by configur
 
 ## n8n Webhook Proxy
 
-The app exposes a **queued proxy** so tools like n8n can call the Zendesk API through your rate-limit queue without storing ticket data in this app.
+The app exposes a **unified queued proxy** so tools like n8n can call the Zendesk API (tickets, users, etc.) through your rate-limit queue without storing data in this app.
 
-- **Endpoint**: `POST /webhooks/tickets`
+- **Endpoint**: `POST /webhooks/zendesk`
 - **Authentication**: Required via `X-Webhook-Secret` header (see Configuration below)
-- **Behavior**: Request is enqueued as `ZendeskProxyJob` on the **proxy** queue. The job performs the Zendesk API call using the same rate-limit logic (Desk `wait_till`, throttle, 429 retries). No `ZendeskTicket` rows are created or updated from the webhook.
+- **Resources**: Supports `tickets` and `users` resources (extensible for future resources)
+- **Behavior**: Request is enqueued as `ZendeskProxyJob` on the **proxy** queue. The job performs the Zendesk API call using the same rate-limit logic (Desk `wait_till`, throttle, 429 retries). No database rows are created or updated from the webhook.
 - **Validation**: The webhook validates that the specified `domain` corresponds to an active Desk before enqueueing the job.
 - **Rack::Attack**: This path is safelisted from throttling only for authenticated requests with the correct shared secret.
 
 ### Configuration
 
-Set the `WEBHOOKS_TICKETS_SECRET` environment variable to a secure random string (e.g., generated with `openssl rand -hex 32`):
+Set the `WEBHOOKS_ZENDESK_SECRET` environment variable to a secure random string (e.g., generated with `openssl rand -hex 32`):
 
 ```bash
-WEBHOOKS_TICKETS_SECRET=your_secure_random_string_here
+WEBHOOKS_ZENDESK_SECRET=your_secure_random_string_here
 ```
 
-All webhook requests must include this secret in the `X-Webhook-Secret` header. The comparison is done using secure cryptographic hashing to prevent timing attacks.
+All webhook requests must include this secret in the `X-Webhook-Secret` header. The comparison is done using secure cryptographic comparison to prevent timing attacks.
+
+**Migration Note**: The previous `WEBHOOKS_TICKETS_SECRET` is still supported as a fallback for backwards compatibility, but it's recommended to migrate to `WEBHOOKS_ZENDESK_SECRET`.
 
 ### Payload (JSON)
 
 | Field       | Required | Description |
 |------------|----------|-------------|
 | `domain`   | Yes      | Zendesk subdomain (e.g. `yourcompany.zendesk.com`). Must match an active configured Desk. |
-| `method`   | No       | `get`, `put`, or `post`. Default: `get`. |
-| `ticket_id`| For get/put | Zendesk ticket ID. Required for `get` and `put`. |
-| `body`     | For put/post | Request body for Zendesk API (e.g. `{ "ticket": { "status": "solved" } }`). |
+| `resource` | Yes      | Resource type: `tickets` or `users`. |
+| `method`   | No       | `get`, `put`, `post`, `patch`, or `delete`. Default: `get`. |
+| `ticket_id`| For tickets with get/put/patch/delete | Zendesk ticket ID. Required for `get`, `put`, `patch`, and `delete` operations on tickets. |
+| `user_id`  | For users with get/put/patch/delete | Zendesk user ID. Required for `get`, `put`, `patch`, and `delete` operations on users. |
+| `body`     | For put/post/patch | Request body for Zendesk API (e.g. `{ "ticket": { "status": "solved" } }` or `{ "user": { "name": "John Doe" } }`). |
 
 ### Examples
+
+#### Tickets
 
 **GET a ticket** (proxy fetches from Zendesk, does not store):
 
 ```bash
-curl -X POST https://your-app.com/webhooks/tickets \
+curl -X POST https://your-app.com/webhooks/zendesk \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Secret: your_secure_random_string_here" \
-  -d '{ "domain": "yourcompany.zendesk.com", "method": "get", "ticket_id": 12345 }'
+  -d '{ "domain": "yourcompany.zendesk.com", "resource": "tickets", "method": "get", "ticket_id": 12345 }'
 ```
 
-**UPDATE a ticket** (proxy sends PUT to Zendesk):
+**UPDATE a ticket** (proxy sends PATCH to Zendesk):
 
 ```bash
-curl -X POST https://your-app.com/webhooks/tickets \
+curl -X POST https://your-app.com/webhooks/zendesk \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Secret: your_secure_random_string_here" \
   -d '{
     "domain": "yourcompany.zendesk.com",
-    "method": "put",
+    "resource": "tickets",
+    "method": "patch",
     "ticket_id": 12345,
     "body": { "ticket": { "status": "solved" } }
   }'
@@ -181,11 +189,12 @@ curl -X POST https://your-app.com/webhooks/tickets \
 **CREATE a ticket** (proxy sends POST to Zendesk):
 
 ```bash
-curl -X POST https://your-app.com/webhooks/tickets \
+curl -X POST https://your-app.com/webhooks/zendesk \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Secret: your_secure_random_string_here" \
   -d '{
     "domain": "yourcompany.zendesk.com",
+    "resource": "tickets",
     "method": "post",
     "body": {
       "ticket": {
@@ -196,7 +205,59 @@ curl -X POST https://your-app.com/webhooks/tickets \
   }'
 ```
 
-Response: `202 Accepted` with `{ "status": "accepted" }`. The actual Zendesk call runs asynchronously on the proxy queue.
+#### Users
+
+**GET a user** (proxy fetches from Zendesk):
+
+```bash
+curl -X POST https://your-app.com/webhooks/zendesk \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{ "domain": "yourcompany.zendesk.com", "resource": "users", "method": "get", "user_id": 67890 }'
+```
+
+**CREATE a user** (proxy sends POST to Zendesk):
+
+```bash
+curl -X POST https://your-app.com/webhooks/zendesk \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{
+    "domain": "yourcompany.zendesk.com",
+    "resource": "users",
+    "method": "post",
+    "body": {
+      "user": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "role": "end-user"
+      }
+    }
+  }'
+```
+
+**UPDATE a user** (proxy sends PATCH to Zendesk):
+
+```bash
+curl -X POST https://your-app.com/webhooks/zendesk \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your_secure_random_string_here" \
+  -d '{
+    "domain": "yourcompany.zendesk.com",
+    "resource": "users",
+    "method": "patch",
+    "user_id": 67890,
+    "body": {
+      "user": {
+        "role": "agent"
+      }
+    }
+  }'
+```
+
+Response: 
+- **Synchronous (GET, DELETE)**: Returns the Zendesk API response immediately with appropriate status code.
+- **Asynchronous (POST, PUT, PATCH)**: `202 Accepted` with `{ "status": "accepted", "message": "Request queued for processing" }`. The actual Zendesk call runs asynchronously on the proxy queue.
 
 ### Error Responses
 

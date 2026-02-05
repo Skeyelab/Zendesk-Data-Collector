@@ -1,5 +1,7 @@
 # Zendesk Proxy Webhook Improvements Summary
 
+> **Note**: This document describes improvements made in a previous iteration. The webhook has since been further improved to support multiple resources (tickets, users, etc.) through a unified endpoint. See [WEBHOOK_API.md](WEBHOOK_API.md) for current API documentation.
+
 ## Overview
 
 This document summarizes the improvements made to the Zendesk proxy webhook implementation in response to the issue "Improve Zendesk proxy webhook". The webhook acts as a proxy for external systems (like n8n) to interact with Zendesk tickets through the application's rate-limited queue.
