@@ -45,3 +45,4 @@ bower.json
 
 # Claude-mem / AI session context (auto-generated)
 **/CLAUDE.md
+.claude/settings.local.json

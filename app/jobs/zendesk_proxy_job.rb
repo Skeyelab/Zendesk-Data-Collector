@@ -63,6 +63,14 @@ class ZendeskProxyJob < ApplicationJob
         retry
       end
 
+      # RecordInvalid (422/413) is a validation response (e.g. duplicate email), not a server error
+      if duplicate_value_validation_error?(e)
+        validation_msg = validation_error_message(e)
+        Rails.logger.warn "[ZendeskProxyJob] Validation: #{method.upcase} #{path} - #{validation_msg}"
+        return [422, {error: validation_msg, error_class: e.class.name}] if synchronous_method?(method)
+        return
+      end
+
       # Log detailed error information
       Rails.logger.error "[ZendeskProxyJob] Error in #{method.upcase} #{path}: #{e.class.name} - #{e.message}"
       Rails.logger.error "[ZendeskProxyJob] Backtrace: #{e.backtrace.first(5).join("\n")}"
@@ -82,6 +90,19 @@ class ZendeskProxyJob < ApplicationJob
   end
 
   private
+
+  # RecordInvalid covers 422/413 validation failures (e.g. duplicate email). Treat as expected validation response.
+  def duplicate_value_validation_error?(error)
+    error.class.name.include?("RecordInvalid")
+  end
+
+  def validation_error_message(error)
+    return error.errors.to_s if error.respond_to?(:errors) && error.errors.present?
+    if error.respond_to?(:response) && error.response.is_a?(Hash) && error.response[:body].present?
+      return error.response[:body].to_s
+    end
+    error.message.to_s
+  end
 
   # Check if the method is synchronous (returns response immediately)
   def synchronous_method?(method)

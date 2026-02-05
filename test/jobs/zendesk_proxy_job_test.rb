@@ -212,6 +212,31 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     assert_equal 404, result[0]
   end
 
+  test "RecordInvalid (e.g. duplicate email) does not raise for async, returns 422 for sync" do
+    error_body = {"email" => [{"description" => "Email: test@example.com is already being used by another user", "error" => "DuplicateValue"}]}
+    stub_request(:post, "https://support.example.com/api/v2/users.json")
+      .with(
+        basic_auth: ["user@example.com/token", "token"],
+        body: {user: {name: "Test", email: "test@example.com"}}.to_json
+      )
+      .to_return(status: 422, body: error_body.to_json, headers: {"Content-Type" => "application/json"})
+
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "post", "users", nil, {"user" => {"name" => "Test", "email" => "test@example.com"}})
+    end
+  end
+
+  test "RecordInvalid returns 422 for synchronous GET (validation response, not server error)" do
+    error_body = {"email" => [{"description" => "Email: test@example.com is already being used", "error" => "DuplicateValue"}]}
+    stub_request(:get, "https://support.example.com/api/v2/users/4006.json")
+      .with(basic_auth: ["user@example.com/token", "token"])
+      .to_return(status: 422, body: error_body.to_json, headers: {"Content-Type" => "application/json"})
+
+    result = ZendeskProxyJob.perform_now("support.example.com", "get", "users", 4006, nil)
+    assert_equal 422, result[0]
+    assert_equal "ZendeskAPI::Error::RecordInvalid", result[1][:error_class]
+  end
+
   test "raises error for invalid resource_type" do
     assert_raises(ArgumentError) do
       ZendeskProxyJob.perform_now("support.example.com", "get", "invalid_resource", 123, nil)
