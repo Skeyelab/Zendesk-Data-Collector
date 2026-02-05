@@ -93,24 +93,40 @@ This is a Rails 8 application that extracts ticket data from Zendesk in real-tim
 
 ### Local Setup
 
+The repository includes two Docker Compose configurations:
+- **`docker-compose.yml`**: Production deployment with internal PostgreSQL
+- **`docker-compose-coolify.yml`**: Coolify-optimized deployment with Coolify magic variables
+
+For local development, use `docker-compose.yml` with appropriate environment variables set in a `.env` file.
+
 ```bash
 # Start all services (PostgreSQL, Rails, worker)
-docker-compose -f docker-compose.local.yml up
+docker-compose up
 
-# Run migrations
-docker-compose -f docker-compose.local.yml run web rails db:migrate
+# Run migrations (in another terminal)
+docker-compose run web rails db:migrate
 
 # Run tests
-docker-compose -f docker-compose.local.yml run web rails test
+docker-compose run web rails test
 
 # Run console
-docker-compose -f docker-compose.local.yml run web rails console
+docker-compose run web rails console
 
 # Check code style
-docker-compose -f docker-compose.local.yml run web bundle exec standardrb
+docker-compose run web bundle exec standardrb
+
+# Fix code style automatically
+docker-compose run web bundle exec standardrb --fix
 ```
 
+**Important**: The compose files are configured for production. For true local development, override environment variables:
+- Set `RAILS_ENV=development`
+- Mount code volumes for hot-reload: `-v $(pwd):/app`
+- Use Procfile.local with foreman: `foreman start -f Procfile.local`
+
 ### Running Tests
+
+The application uses **Minitest** (Rails 8 default) for testing. Tests are located in `test/` directory.
 
 ```bash
 # Run all tests
@@ -119,9 +135,19 @@ rails test
 # Run specific test file
 rails test test/models/zendesk_ticket_test.rb
 
-# Run specific test
+# Run specific test by line number
 rails test test/models/zendesk_ticket_test.rb:15
+
+# Run tests with coverage
+COVERAGE=true rails test
 ```
+
+**Test Setup Requirements:**
+- PostgreSQL database connection for test environment
+- WebMock for mocking external Zendesk API calls
+- SimpleCov for coverage reporting (configured in test_helper.rb)
+
+**Note**: Gemfile includes `rspec-rails` but all tests use Minitest. The gem may be a leftover dependency.
 
 ### Database Migrations
 
@@ -134,11 +160,36 @@ rails test test/models/zendesk_ticket_test.rb:15
 
 - `app/models/` - ActiveRecord models (Desk, ZendeskTicket, AdminUser)
 - `app/jobs/` - Background job classes (Solid Queue)
-- `app/services/` - Service objects (e.g., ZendeskClientService)
-- `app/avo/` - Avo admin interface resources
-- `config/routes.rb` - Routes configuration (Devise, Avo, Mission Control)
-- `test/` - Test suite (models, controllers, jobs, integration)
-- `docker-compose*.yml` - Various Docker Compose configurations for different deployment scenarios
+  - `incremental_ticket_job.rb` - Main ticket sync job
+  - `fetch_ticket_comments_job.rb` - Fetches comments for tickets
+  - `fetch_ticket_metrics_job.rb` - Fetches metrics for tickets
+  - `queue_incremental_tickets_job.rb` - Recurring job that schedules ticket syncs
+  - `zendesk_proxy_job.rb` - Proxies webhook requests to Zendesk API
+  - `concerns/zendesk_api_headers.rb` - Shared rate limit handling
+- `app/services/` - Service objects (e.g., ZendeskClientService, ZendeskTicketUpsertService)
+- `app/avo/` - Avo admin interface resources and dashboards
+- `app/controllers/webhooks/` - Webhook endpoints (e.g., tickets_controller.rb)
+- `config/routes.rb` - Routes configuration (Devise, Avo, Mission Control, webhooks)
+- `config/initializers/` - Rails initializers
+  - `avo.rb` - Avo configuration
+  - `rack_attack.rb` - Rate limiting configuration
+  - `solid_queue.rb` - Background job queue configuration
+- `test/` - Test suite using Minitest
+  - `test/models/` - Model tests
+  - `test/controllers/` - Controller tests
+  - `test/jobs/` - Background job tests
+  - `test/services/` - Service object tests
+  - `test/integration/` - Integration tests
+  - `test/fixtures/` - Test data fixtures
+  - `test_helper.rb` - Test configuration and setup
+- `db/migrate/` - Database migrations
+- `db/seeds.rb` - Database seeding (creates default admin user)
+- `.github/workflows/ci.yml` - GitHub Actions CI workflow
+- `docker-compose.yml` - Production deployment with internal PostgreSQL
+- `docker-compose-coolify.yml` - Coolify deployment configuration
+- `Procfile` - Process definitions for production (Puma server, Solid Queue worker)
+- `Procfile.local` - Process definitions for local development
+- `Dockerfile` - Multi-stage Docker build (development and production targets)
 
 ## Important Patterns
 
@@ -165,12 +216,57 @@ rails test test/models/zendesk_ticket_test.rb:15
 
 ## Deployment
 
-The application supports multiple deployment configurations:
-- **docker-compose.yml**: Coolify with external databases
-- **docker-compose-coolify.yml**: Coolify with internal PostgreSQL
-- **docker-compose.local.yml**: Local development
+The application supports two deployment configurations:
+- **docker-compose.yml**: Production deployment with internal PostgreSQL
+- **docker-compose-coolify.yml**: Coolify-optimized deployment with Coolify magic variables
 
 See `DEPLOYMENT.md` for detailed deployment instructions.
+
+## CI/CD Workflow
+
+The repository uses GitHub Actions for continuous integration defined in `.github/workflows/ci.yml`.
+
+### CI Pipeline Steps:
+
+1. **Setup Services**: Starts PostgreSQL container
+2. **Install Dependencies**: Installs Ruby 3.2.4 and runs `bundle install` (cached)
+3. **System Dependencies**: Installs libpq-dev and build-essential
+4. **Database Setup**: Creates test database and loads schema with `rails db:create db:schema:load`
+5. **Run Tests**: Executes `bundle exec rails test`
+6. **Upload Coverage**: Uploads SimpleCov coverage reports as artifacts
+
+### Required Environment Variables for CI:
+- `RAILS_ENV=test`
+- `DATABASE_URL` - PostgreSQL connection string
+- `SECRET_KEY_BASE` - Rails secret key
+- `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - Encryption key (test value in CI)
+- `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - Deterministic encryption key (test value in CI)
+- `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - Key derivation salt (test value in CI)
+
+### Testing Before Commit:
+
+**Always run these commands before committing:**
+```bash
+# 1. Run code style checker
+bundle exec standardrb
+
+# 2. Fix style issues automatically
+bundle exec standardrb --fix
+
+# 3. Run all tests
+bundle exec rails test
+
+# 4. Verify database migrations work both ways
+bundle exec rails db:migrate
+bundle exec rails db:rollback
+bundle exec rails db:migrate
+```
+
+**CI will fail if:**
+- Code style violations exist (standardrb)
+- Any tests fail
+- Database migrations fail
+- System dependencies are missing
 
 ## Admin Interface
 
@@ -202,3 +298,108 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 - Background jobs use Solid Queue (Rails 8 default)
 - All ticket data is preserved in raw_data JSONB for future flexibility
 - The system prevents duplicate job execution using the `queued` flag
+
+## Common Issues & Troubleshooting
+
+### Database Connection Issues
+- **Problem**: `PG::ConnectionBad` or database connection errors
+- **Solution**: Ensure PostgreSQL is running and `DATABASE_URL` is correctly set
+  ```bash
+  # Check if PostgreSQL is running
+  docker-compose ps postgres
+  
+  # Verify DATABASE_URL format
+  # Should be: postgresql://user:password@host:port/database
+  ```
+
+### Rate Limiting Issues
+- **Problem**: Zendesk API returns 429 (Too Many Requests)
+- **Solution**: The application handles this automatically. Check:
+  - `wait_till` timestamp on Desk model (should auto-update)
+  - `ZENDESK_RATE_LIMIT_HEADROOM_PERCENT` environment variable (default: 18)
+  - Job logs for retry attempts
+
+### Test Failures
+- **Problem**: Tests fail locally but CI passes (or vice versa)
+- **Common Causes**:
+  - Missing test environment variables (see `test_helper.rb`)
+  - Database not cleaned between tests
+  - WebMock not properly stubbing Zendesk API calls
+  - Fixtures not loaded correctly
+- **Solution**: 
+  ```bash
+  # Reset test database
+  RAILS_ENV=test rails db:drop db:create db:schema:load
+  
+  # Run tests with verbose output
+  rails test -v
+  ```
+
+### Background Jobs Not Running
+- **Problem**: Jobs queued but not processing
+- **Solution**: Ensure Solid Queue worker is running
+  ```bash
+  # Check worker status
+  docker-compose ps worker
+  
+  # View worker logs
+  docker-compose logs -f worker
+  
+  # Restart worker
+  docker-compose restart worker
+  ```
+
+### Encryption Key Errors
+- **Problem**: `ActiveRecord::Encryption::Errors::Configuration` or encryption errors
+- **Solution**: Ensure all three encryption environment variables are set:
+  ```bash
+  ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=<64 hex chars>
+  ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=<64 hex chars>
+  ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=<64 hex chars>
+  
+  # Generate keys with:
+  ruby -e "require 'securerandom'; puts SecureRandom.hex(32)"
+  ```
+
+### Docker Build Issues
+- **Problem**: Docker build fails or is slow
+- **Solution**: 
+  ```bash
+  # Clear Docker cache
+  docker-compose build --no-cache
+  
+  # Remove old images
+  docker system prune -a
+  ```
+
+### Code Style Violations
+- **Problem**: CI fails due to standardrb violations
+- **Solution**: Always run standardrb before committing
+  ```bash
+  # Check style
+  bundle exec standardrb
+  
+  # Auto-fix most issues
+  bundle exec standardrb --fix
+  ```
+
+## Environment Variables Reference
+
+### Required for Production:
+- `SECRET_KEY_BASE` - Rails secret key (auto-generated in Coolify via `SERVICE_PASSWORD_WEB`)
+- `DATABASE_URL` - PostgreSQL connection string
+- `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` - 64-character hex string (32 bytes)
+- `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` - 64-character hex string (32 bytes)
+- `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` - 64-character hex string (32 bytes)
+
+### Optional Configuration:
+- `DEFAULT_ADMIN_USER` - Email for initial admin user (default: admin@example.com)
+- `DEFAULT_ADMIN_PW` - Password for initial admin user (uses `SERVICE_PASSWORD_ADMIN` in Coolify)
+- `WEBHOOKS_TICKETS_SECRET` - Webhook authentication secret (required for n8n integration)
+- `RAILS_MAX_THREADS` - Puma thread count (default: 5)
+- `SOLID_QUEUE_CONCURRENCY` - Background job workers (default: 5 production, 1 development)
+- `ZENDESK_RATE_LIMIT_HEADROOM_PERCENT` - Rate limit headroom percentage (default: 18)
+- `COMMENT_JOB_DELAY_SECONDS` - Initial delay for comment jobs (default: 0)
+- `COMMENT_JOB_STAGGER_SECONDS` - Stagger between comment jobs (default: 0.2)
+- `METRICS_JOB_DELAY_SECONDS` - Initial delay for metrics jobs (default: 0)
+- `METRICS_JOB_STAGGER_SECONDS` - Stagger between metrics jobs (default: 0.2)
