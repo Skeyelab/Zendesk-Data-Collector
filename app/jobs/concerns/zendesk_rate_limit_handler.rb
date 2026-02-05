@@ -42,11 +42,12 @@ module ZendeskRateLimitHandler
   end
 
   # Returns parsed response body as a Hash (handles already-parsed body or JSON string).
+  # 204 No Content and other empty responses return {}.
   def parse_response_body(response)
-    return {} unless response&.respond_to?(:body)
+    return {} unless response.respond_to?(:body)
 
     body = response.body
-    return {} if body.nil?
+    return {} if body.nil? || body.to_s.strip.empty?
 
     body.is_a?(Hash) ? body : JSON.parse(body.to_s)
   end

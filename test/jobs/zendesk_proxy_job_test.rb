@@ -52,6 +52,33 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     end
   end
 
+  test "PATCH ticket proxies to Zendesk and does not create ZendeskTicket" do
+    stub_request(:patch, "https://support.example.com/api/v2/tickets/3005.json")
+      .with(
+        basic_auth: ["user@example.com/token", "token"],
+        body: {ticket: {priority: "high"}}.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+      .to_return(status: 200, body: {ticket: {id: 3005, priority: "high"}}.to_json, headers: {"Content-Type" => "application/json"})
+
+    assert_no_difference "ZendeskTicket.count" do
+      ZendeskProxyJob.perform_now("support.example.com", "patch", 3005, {"ticket" => {"priority" => "high"}})
+    end
+  end
+
+  test "DELETE ticket proxies to Zendesk and returns status" do
+    stub_request(:delete, "https://support.example.com/api/v2/tickets/3006.json")
+      .with(basic_auth: ["user@example.com/token", "token"])
+      .to_return(status: 204, body: "", headers: {"Content-Type" => "application/json"})
+
+    assert_no_difference "ZendeskTicket.count" do
+      result = ZendeskProxyJob.perform_now("support.example.com", "delete", 3006, nil)
+      assert_equal 204, result[0]
+      # DELETE typically returns empty body with 204 status
+      assert result[1].empty? || result[1].is_a?(Hash)
+    end
+  end
+
   test "does nothing when no desk for domain" do
     stub_request(:get, %r{support\.unknown\.com/api/v2/tickets})
       .to_return(status: 200, body: {ticket: {id: 1}}.to_json)
@@ -80,5 +107,14 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     assert_no_difference "ZendeskTicket.count" do
       ZendeskProxyJob.perform_now("support.example.com", "get", 3003, nil)
     end
+  end
+
+  test "handles errors gracefully for GET requests and returns error response" do
+    stub_request(:get, "https://support.example.com/api/v2/tickets/9999.json")
+      .with(basic_auth: ["user@example.com/token", "token"])
+      .to_return(status: 404, body: {error: "Not Found"}.to_json, headers: {"Content-Type" => "application/json"})
+
+    result = ZendeskProxyJob.perform_now("support.example.com", "get", 9999, nil)
+    assert_equal 404, result[0]
   end
 end

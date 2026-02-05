@@ -60,6 +60,9 @@ class WebhooksTicketsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :accepted
+    json = JSON.parse(response.body)
+    assert_equal "accepted", json["status"]
+    assert_includes json["message"], "queued"
   end
 
   test "POST with domain and method post (create) enqueues ZendeskProxyJob without ticket_id" do
@@ -75,6 +78,38 @@ class WebhooksTicketsControllerTest < ActionDispatch::IntegrationTest
     assert_response :accepted
   end
 
+  test "POST with domain, method patch updates ticket and returns 202" do
+    payload = {
+      domain: "support.example.com",
+      method: "patch",
+      ticket_id: 2003,
+      body: {ticket: {priority: "high"}}
+    }
+
+    assert_enqueued_with(job: ZendeskProxyJob,
+      args: ["support.example.com", "patch", 2003,
+        {"ticket" => {"priority" => "high"}}]) do
+      post webhooks_tickets_path, params: payload, as: :json, headers: @valid_headers
+    end
+    assert_response :accepted
+  end
+
+  test "POST with domain, method delete executes synchronously and returns result" do
+    stub_request(:delete, "https://support.example.com/api/v2/tickets/2004.json")
+      .with(basic_auth: ["user@example.com/token", "token"])
+      .to_return(
+        status: 204,
+        body: "",
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    payload = {domain: "support.example.com", method: "delete", ticket_id: 2004}
+
+    post webhooks_tickets_path, params: payload, as: :json, headers: @valid_headers
+
+    assert_response :no_content
+  end
+
   test "POST without domain returns 422" do
     payload = {ticket_id: 1003, method: "get"}
 
@@ -87,28 +122,54 @@ class WebhooksTicketsControllerTest < ActionDispatch::IntegrationTest
     post webhooks_tickets_path,
       params: {domain: "support.example.com", method: "put", ticket_id: 1}, as: :json, headers: @valid_headers
     assert_response :unprocessable_entity
-    assert_equal "body is required for put/post", JSON.parse(response.body)["error"]
+    assert_equal "body is required for put/post/patch", JSON.parse(response.body)["error"]
 
     post webhooks_tickets_path,
       params: {domain: "support.example.com", method: "post"}, as: :json, headers: @valid_headers
     assert_response :unprocessable_entity
-    assert_equal "body is required for put/post", JSON.parse(response.body)["error"]
+    assert_equal "body is required for put/post/patch", JSON.parse(response.body)["error"]
+
+    post webhooks_tickets_path,
+      params: {domain: "support.example.com", method: "patch", ticket_id: 1}, as: :json, headers: @valid_headers
+    assert_response :unprocessable_entity
+    assert_equal "body is required for put/post/patch", JSON.parse(response.body)["error"]
+  end
+
+  test "POST with invalid body structure returns 422" do
+    # Body without 'ticket' key
+    post webhooks_tickets_path,
+      params: {domain: "support.example.com", method: "post", body: {status: "solved"}}, as: :json, headers: @valid_headers
+    assert_response :unprocessable_entity
+    assert_equal "body must contain a 'ticket' object", JSON.parse(response.body)["error"]
   end
 
   test "POST with get/put but no ticket_id returns 422" do
     post webhooks_tickets_path, params: {domain: "support.example.com", method: "get"}, as: :json,
       headers: @valid_headers
     assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "ticket_id is required"
 
     post webhooks_tickets_path, params: {domain: "support.example.com", method: "put", body: {ticket: {}}}, as: :json,
       headers: @valid_headers
     assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "ticket_id is required"
+
+    post webhooks_tickets_path, params: {domain: "support.example.com", method: "patch", body: {ticket: {}}}, as: :json,
+      headers: @valid_headers
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "ticket_id is required"
+
+    post webhooks_tickets_path, params: {domain: "support.example.com", method: "delete"}, as: :json,
+      headers: @valid_headers
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "ticket_id is required"
   end
 
   test "POST with invalid method returns 422" do
-    post webhooks_tickets_path, params: {domain: "support.example.com", ticket_id: 1, method: "delete"}, as: :json,
+    post webhooks_tickets_path, params: {domain: "support.example.com", ticket_id: 1, method: "options"}, as: :json,
       headers: @valid_headers
     assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "method must be"
   end
 
   test "POST with invalid JSON returns 400 or 422" do
