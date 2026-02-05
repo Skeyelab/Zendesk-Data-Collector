@@ -5,7 +5,6 @@ class ZendeskProxyJob < ApplicationJob
   include ZendeskRateLimitHandler
 
   MAX_RETRIES = 3
-  SYNC_REQUEST_TIMEOUT = 30 # Seconds for synchronous requests
 
   queue_as :proxy
 
@@ -83,6 +82,18 @@ class ZendeskProxyJob < ApplicationJob
 
   private
 
+  # HTTP status code mapping for error messages
+  ERROR_STATUS_MAP = {
+    "404" => 404,
+    "Not Found" => 404,
+    "403" => 403,
+    "Forbidden" => 403,
+    "401" => 401,
+    "Unauthorized" => 401,
+    "422" => 422,
+    "Unprocessable" => 422
+  }.freeze
+
   # Extract HTTP status from error when available
   def extract_error_status(error)
     if error.respond_to?(:response) && error.response.respond_to?(:status)
@@ -94,11 +105,10 @@ class ZendeskProxyJob < ApplicationJob
       return error.response[:status] if error.response[:status]
     end
 
-    # Check message for status codes
-    return 404 if error.message.include?("404") || error.message.include?("Not Found")
-    return 403 if error.message.include?("403") || error.message.include?("Forbidden")
-    return 401 if error.message.include?("401") || error.message.include?("Unauthorized")
-    return 422 if error.message.include?("422") || error.message.include?("Unprocessable")
+    # Check message for status codes using predefined mapping
+    ERROR_STATUS_MAP.each do |pattern, status|
+      return status if error.message.include?(pattern)
+    end
 
     nil
   end
