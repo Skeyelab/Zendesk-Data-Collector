@@ -12,7 +12,7 @@ A Rails 8 application that extracts ticket data from Zendesk in real-time to a P
 - **Automatic Comment Fetching**: Fetches and stores ticket comments separately with staggered delays and rate limiting protection
 - **Automatic Metrics Extraction**: Fetches ticket metrics and extracts to indexed columns for fast reporting
 - **Comprehensive Rate Limit Handling**: Built-in rate limit detection, backoff, retry logic, and persistent state management
-- **n8n Webhook Proxy**: Queued proxy for n8n (or other callers) to forward Zendesk API calls (GET/PUT/POST tickets) through the same rate-limit queue—no ticket data is stored from the webhook
+- **Zendesk API Webhook Proxy**: Queued proxy for any HTTP client (n8n, Make, Zapier, curl, etc.) to forward Zendesk API calls (GET/PUT/POST tickets, users) through the same rate-limit queue—no ticket data is stored from the webhook
 - **Admin Interface**: Powered by Avo 3.0 for managing Zendesk accounts and viewing ticket data with dashboard cards
 - **Job Monitoring**: Mission Control interface for monitoring background jobs, recurring tasks, and queue health
 - **Secure Credentials**: Encrypted API token storage using Rails Active Record Encryption
@@ -114,7 +114,7 @@ The application uses four main jobs:
 Jobs are prioritized to ensure efficient processing:
 - **Priority 0**: Incremental ticket jobs (highest - process tickets first)
 - **Priority 10**: Comment and metrics fetch jobs (lower - fetch details after tickets)
-- **proxy** queue: ZendeskProxyJob (webhook-proxied Zendesk API calls from n8n)
+- **proxy** queue: ZendeskProxyJob (webhook-proxied Zendesk API calls from external clients)
 
 ### Conditional Queue Names
 
@@ -124,9 +124,9 @@ To optimize processing of closed/solved tickets, the application uses different 
 
 This allows you to prioritize processing of active tickets if needed by configuring different worker pools.
 
-## n8n Webhook Proxy
+## Zendesk API Webhook Proxy
 
-The app exposes a **unified queued proxy** so tools like n8n can call the Zendesk API (tickets, users, etc.) through your rate-limit queue without storing data in this app.
+The app exposes a **unified queued proxy** so any HTTP client (n8n, Make, Zapier, custom scripts, etc.) can call the Zendesk API (tickets, users, etc.) through your rate-limit queue without storing data in this app.
 
 - **Endpoint**: `POST /webhooks/zendesk`
 - **Authentication**: Required via `X-Webhook-Secret` header (see Configuration below)
