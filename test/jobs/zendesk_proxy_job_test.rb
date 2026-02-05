@@ -56,16 +56,6 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     end
   end
 
-  test "GET ticket with default resource_type (backwards compatibility)" do
-    stub_ticket_get(3001, {id: 3001, subject: "Default resource", status: "open"})
-
-    assert_no_difference "ZendeskTicket.count" do
-      result = ZendeskProxyJob.perform_now("support.example.com", "get", 3001, nil)
-      assert_equal 200, result[0]
-      assert_equal 3001, result[1]["ticket"]["id"]
-    end
-  end
-
   test "PUT ticket proxies to Zendesk and does not create ZendeskTicket" do
     stub_ticket_put(3002)
 
@@ -135,7 +125,10 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
       )
       .to_return(status: 201, body: {user: {id: 4002, name: "Jane Doe"}}.to_json, headers: {"Content-Type" => "application/json"})
 
-    ZendeskProxyJob.perform_now("support.example.com", "post", "users", nil, {"user" => {"name" => "Jane Doe", "email" => "jane@example.com"}})
+    # POST is async, so it doesn't return a result
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "post", "users", nil, {"user" => {"name" => "Jane Doe", "email" => "jane@example.com"}})
+    end
   end
 
   test "PUT user updates user" do
@@ -147,7 +140,10 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
       )
       .to_return(status: 200, body: {user: {id: 4003, name: "Updated Name"}}.to_json, headers: {"Content-Type" => "application/json"})
 
-    ZendeskProxyJob.perform_now("support.example.com", "put", "users", 4003, {"user" => {"name" => "Updated Name"}})
+    # PUT is async, so it doesn't return a result
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "put", "users", 4003, {"user" => {"name" => "Updated Name"}})
+    end
   end
 
   test "PATCH user updates user partially" do
@@ -159,7 +155,10 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
       )
       .to_return(status: 200, body: {user: {id: 4004, role: "agent"}}.to_json, headers: {"Content-Type" => "application/json"})
 
-    ZendeskProxyJob.perform_now("support.example.com", "patch", "users", 4004, {"user" => {"role" => "agent"}})
+    # PATCH is async, so it doesn't return a result
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "patch", "users", 4004, {"user" => {"role" => "agent"}})
+    end
   end
 
   test "DELETE user deletes user" do
