@@ -144,11 +144,12 @@ COVERAGE=true rails test
 
 **Test Setup Requirements:**
 - PostgreSQL database connection for test environment
-- MongoDB is NOT required for tests (application only uses PostgreSQL)
 - WebMock for mocking external Zendesk API calls
 - SimpleCov for coverage reporting (configured in test_helper.rb)
 
-**Note**: Gemfile includes `rspec-rails` but it's not actively used. All tests are written in Minitest.
+**Note**: 
+- Gemfile includes `rspec-rails` but it's not actively used. All tests are written in Minitest.
+- CI workflow includes MongoDB service but it's not used by the application (legacy configuration).
 
 ### Database Migrations
 
@@ -231,7 +232,7 @@ The repository uses GitHub Actions for continuous integration defined in `.githu
 
 ### CI Pipeline Steps:
 
-1. **Setup Services**: Starts PostgreSQL and MongoDB containers (MongoDB for backward compatibility only)
+1. **Setup Services**: Starts PostgreSQL container (MongoDB is also started but unused - legacy from earlier version)
 2. **Install Dependencies**: Installs Ruby 3.2.4 and runs `bundle install` (cached)
 3. **System Dependencies**: Installs libpq-dev and build-essential
 4. **Database Setup**: Creates test database and loads schema with `rails db:create db:schema:load`
