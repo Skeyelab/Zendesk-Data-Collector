@@ -9,9 +9,10 @@ class ZendeskProxyJob < ApplicationJob
   queue_as :proxy
 
   # method: "get" | "put" | "post" | "patch" | "delete"
-  # ticket_id: required for get/put/patch/delete, nil for post (create)
-  # body: hash for put/post/patch request body (e.g. { ticket: { status: "solved" } })
-  def perform(domain, method, ticket_id = nil, body = nil)
+  # resource_type: "tickets" | "users"
+  # resource_id: required for get/put/patch/delete, nil for post (create)
+  # body: hash for put/post/patch request body (e.g. { ticket: { status: "solved" } } or { user: { name: "John" } })
+  def perform(domain, method, resource_type = "tickets", resource_id = nil, body = nil)
     desk = Desk.find_by(domain: domain)
     unless desk
       Rails.logger.warn "[ZendeskProxyJob] No desk found for domain #{domain}, skipping"
@@ -27,7 +28,7 @@ class ZendeskProxyJob < ApplicationJob
     client = ZendeskClientService.connect(desk)
     retry_count = 0
 
-    path = build_path(method, ticket_id)
+    path = build_path(method, resource_type, resource_id)
 
     begin
       response = send_request(client, method, path, body)
@@ -114,14 +115,24 @@ class ZendeskProxyJob < ApplicationJob
     nil
   end
 
-  def build_path(method, ticket_id)
+  def build_path(method, resource_type, resource_id)
+    # Normalize resource_type to plural form
+    resource_path = case resource_type.to_s.downcase
+    when "tickets", "ticket"
+      "tickets"
+    when "users", "user"
+      "users"
+    else
+      raise ArgumentError, "resource_type must be tickets or users"
+    end
+
     case method.to_s.downcase
     when "post"
-      "/api/v2/tickets.json"
+      "/api/v2/#{resource_path}.json"
     when "get", "put", "patch", "delete"
-      raise ArgumentError, "ticket_id required for #{method}" if ticket_id.blank?
+      raise ArgumentError, "resource_id required for #{method}" if resource_id.blank?
 
-      "/api/v2/tickets/#{ticket_id}.json"
+      "/api/v2/#{resource_path}/#{resource_id}.json"
     else
       raise ArgumentError, "method must be get, put, post, patch, or delete"
     end

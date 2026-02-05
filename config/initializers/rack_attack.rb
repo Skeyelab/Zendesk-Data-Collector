@@ -1,13 +1,13 @@
 require "digest"
 
 class Rack::Attack
-  # Allow webhook endpoint (n8n ticket updates) without throttling,
+  # Allow webhook endpoint (n8n ticket/user updates) without throttling,
   # but only for callers presenting the correct shared secret header.
-  safelist("webhooks/tickets") do |req|
-    next false unless req.path == "/webhooks/tickets" && req.post?
+  safelist("webhooks/zendesk") do |req|
+    next false unless req.path == "/webhooks/zendesk" && req.post?
 
     provided_secret = req.get_header("HTTP_X_WEBHOOK_SECRET")
-    expected_secret = ENV["WEBHOOKS_TICKETS_SECRET"]
+    expected_secret = ENV["WEBHOOKS_ZENDESK_SECRET"] || ENV["WEBHOOKS_TICKETS_SECRET"]
 
     next false if provided_secret.nil? || expected_secret.nil?
 
