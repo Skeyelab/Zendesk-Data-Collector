@@ -25,23 +25,9 @@ jobs:
         ports:
           - 5432:5432
 
-      mongodb:
-        image: mongo:7
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: password
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 27017:27017
-
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/zd_desk_data_collector_test
-      MONGODB_TEST_URI: mongodb://root:password@localhost:27017/zendesk_data_collector_test?authSource=admin
       SECRET_KEY_BASE: test_secret_key_base_for_ci
       RAILS_MAX_THREADS: 1
       # Active Record Encryption keys (32 bytes = 64 hex characters)

@@ -277,8 +277,6 @@ Available Docker Compose configurations:
 - `docker-compose.yml` - Standard deployment with internal PostgreSQL (includes postgres, web, worker, migrate, seed services)
 - `docker-compose-coolify.yml` - Coolify-optimized deployment with internal PostgreSQL and Coolify magic variables (includes postgres, web, worker, migrate, seed services)
 
-**Note**: The DEPLOYMENT.md file is outdated and references MongoDB configurations and additional docker-compose files that do not exist. The application **only uses PostgreSQL** (no MongoDB), and only the two compose files listed above exist in the repository.
-
 ## Reporting & Analytics
 
 Once deployed and syncing data, you can connect your reporting tool of choice directly to the PostgreSQL database:
