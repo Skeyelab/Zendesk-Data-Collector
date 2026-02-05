@@ -13,13 +13,6 @@ RUN apt-get update -qq && \
 # Set working directory
 WORKDIR /app
 
-# Ensure gem executables are on PATH for all users (fixes "command not found: puma" in some runtimes)
-ENV GEM_HOME=/usr/local/bundle
-ENV PATH=/usr/local/bundle/bin:$PATH
-
-# Match Gemfile.lock "BUNDLED WITH" so bundle install works (ruby image ships with Bundler 2.x)
-RUN gem install bundler -v 4.0.6
-
 # Development stage
 FROM base AS development
 
@@ -55,8 +48,7 @@ FROM base AS production
 # Copy Gemfile and Gemfile.lock first (for better caching)
 COPY Gemfile Gemfile.lock ./
 
-# Install gems without development and test groups (BUNDLE_PATH so install location is explicit)
-ENV BUNDLE_PATH=/usr/local/bundle
+# Install gems without development and test groups
 RUN bundle install --without development test && \
     rm -rf ~/.bundle && \
     find /usr/local/bundle/gems -name "*.git" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -84,5 +76,5 @@ USER appuser
 # Expose port
 EXPOSE 3000
 
-# Default command (puma is on PATH via GEM_HOME/bin)
-CMD ["puma", "-C", "config/puma.rb"]
+# Default command (can be overridden in docker-compose)
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
