@@ -13,6 +13,9 @@ RUN apt-get update -qq && \
 # Set working directory
 WORKDIR /app
 
+# Install bundler version from Gemfile.lock
+RUN gem install bundler -v 4.0.6
+
 # Development stage
 FROM base AS development
 
