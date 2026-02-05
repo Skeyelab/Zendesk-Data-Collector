@@ -29,6 +29,9 @@ All requests must be sent as JSON with the following structure:
   "ticket_id": 12345,
   "body": {
     "ticket": {
+      "subject": "Ticket subject",
+      "priority": "high",
+      "status": "open"
     }
   }
 }

@@ -41,7 +41,7 @@ class ZendeskProxyJob < ApplicationJob
         raise "Rate limit exceeded (429), retrying" if retry_count <= MAX_RETRIES
 
         Rails.logger.warn "[ZendeskProxyJob] Max retries reached for #{method.upcase} #{path} after rate limit"
-        return [429, {error: "Rate limit exceeded, max retries reached"}] if %w[get delete].include?(method.to_s.downcase)
+        return [429, {error: "Rate limit exceeded, max retries reached"}] if synchronous_method?(method)
         return
       end
 
@@ -50,7 +50,7 @@ class ZendeskProxyJob < ApplicationJob
       Rails.logger.info "[ZendeskProxyJob] #{method.upcase} #{path} completed with status #{status} (desk: #{desk.domain})"
 
       # Return response for GET and DELETE operations
-      [status, response_body] if %w[get delete].include?(method.to_s.downcase)
+      [status, response_body] if synchronous_method?(method)
     rescue => e
       retry if e.message == "Rate limit exceeded (429), retrying"
 
@@ -67,7 +67,7 @@ class ZendeskProxyJob < ApplicationJob
       Rails.logger.error "[ZendeskProxyJob] Backtrace: #{e.backtrace.first(5).join("\n")}"
 
       # For synchronous operations, return error details
-      if %w[get delete].include?(method.to_s.downcase)
+      if synchronous_method?(method)
         error_status = extract_error_status(e) || 500
         error_body = {
           error: e.message,
@@ -82,15 +82,16 @@ class ZendeskProxyJob < ApplicationJob
 
   private
 
+  # Check if the method is synchronous (returns response immediately)
+  def synchronous_method?(method)
+    %w[get delete].include?(method.to_s.downcase)
+  end
+
   # HTTP status code mapping for error messages
   ERROR_STATUS_MAP = {
-    "404" => 404,
     "Not Found" => 404,
-    "403" => 403,
     "Forbidden" => 403,
-    "401" => 401,
     "Unauthorized" => 401,
-    "422" => 422,
     "Unprocessable" => 422
   }.freeze
 

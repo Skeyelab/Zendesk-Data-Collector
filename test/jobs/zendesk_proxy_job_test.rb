@@ -66,7 +66,7 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     end
   end
 
-  test "DELETE ticket proxies to Zendesk and returns status and response" do
+  test "DELETE ticket proxies to Zendesk and returns status" do
     stub_request(:delete, "https://support.example.com/api/v2/tickets/3006.json")
       .with(basic_auth: ["user@example.com/token", "token"])
       .to_return(status: 204, body: "", headers: {"Content-Type" => "application/json"})
@@ -74,6 +74,8 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
     assert_no_difference "ZendeskTicket.count" do
       result = ZendeskProxyJob.perform_now("support.example.com", "delete", 3006, nil)
       assert_equal 204, result[0]
+      # DELETE typically returns empty body with 204 status
+      assert result[1].empty? || result[1].is_a?(Hash)
     end
   end
 
