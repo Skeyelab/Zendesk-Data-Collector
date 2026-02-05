@@ -138,34 +138,6 @@ The compose files are configured to use `SERVICE_PASSWORD_ADMIN` automatically i
 
 ## Local Development
 
-To create an initial admin user for login, you have two options:
-
-**Option 1: Use Magic Variables (Recommended)**
-- Set **`DEFAULT_ADMIN_USER`** - The email address for the admin user (e.g., `admin@example.com`)
-- Coolify will automatically generate **`SERVICE_PASSWORD_ADMIN`** - A secure auto-generated password
-
-The compose files are configured to use `SERVICE_PASSWORD_ADMIN` automatically if available, falling back to a manually set `DEFAULT_ADMIN_PW` if needed.
-
-**Option 2: Manual Password**
-- Set **`DEFAULT_ADMIN_USER`** - The email address for the admin user
-- Set **`DEFAULT_ADMIN_PW`** - Your chosen password
-
-**How It Works:**
-- These variables are used by the `seed` service which runs automatically after migrations on first deployment
-- The password uses the pattern: `${SERVICE_PASSWORD_ADMIN:-${DEFAULT_ADMIN_PW}}` - meaning it will use the magic variable if available, otherwise your manual password
-- If `DEFAULT_ADMIN_USER` is not set, the seed step will skip creating an admin user (you'll see a message in the logs)
-- The generated password will appear in Coolify's Environment Variables UI for your reference
-
-**Important**: After the first deployment, if you need to create additional admin users or change passwords, you can do so through the Avo admin interface or by running `rails console` in the web service container.
-
-### Troubleshooting
-
-- **Magic Variables Not Working**: Requires Coolify v4.0.0-beta.411+ for Git-based deployments
-- **Migrations Not Running**: Check the `migrate` service logs in Coolify
-- **PostgreSQL Connection Issues**: Verify that services wait for PostgreSQL health check before starting
-
-## Local Development
-
 ### Prerequisites
 
 - Docker and Docker Compose installed
