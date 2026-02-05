@@ -148,8 +148,8 @@ COVERAGE=true rails test
 - SimpleCov for coverage reporting (configured in test_helper.rb)
 
 **Note**: 
-- Gemfile includes `rspec-rails` but it's not actively used. All tests are written in Minitest.
-- CI workflow includes MongoDB service but it's not used by the application (legacy configuration).
+- Gemfile includes `rspec-rails` but all tests use Minitest. The gem may be a leftover dependency.
+- Application **only uses PostgreSQL**. MongoDB service in CI and DEPLOYMENT.md references are legacy/outdated.
 
 ### Database Migrations
 
@@ -224,7 +224,7 @@ The application supports two deployment configurations:
 
 See `DEPLOYMENT.md` for detailed deployment instructions.
 
-**Note**: DEPLOYMENT.md contains some outdated references to MongoDB - the application **only uses PostgreSQL**. MongoDB references should be ignored.
+**Note**: DEPLOYMENT.md and CI workflow contain legacy MongoDB references. The application **only uses PostgreSQL** - ignore any MongoDB configuration.
 
 ## CI/CD Workflow
 
@@ -232,7 +232,7 @@ The repository uses GitHub Actions for continuous integration defined in `.githu
 
 ### CI Pipeline Steps:
 
-1. **Setup Services**: Starts PostgreSQL container (MongoDB is also started but unused - legacy from earlier version)
+1. **Setup Services**: Starts PostgreSQL container (MongoDB also started but is unused legacy service)
 2. **Install Dependencies**: Installs Ruby 3.2.4 and runs `bundle install` (cached)
 3. **System Dependencies**: Installs libpq-dev and build-essential
 4. **Database Setup**: Creates test database and loads schema with `rails db:create db:schema:load`
