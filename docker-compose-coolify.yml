@@ -21,7 +21,7 @@ services:
     build:
       context: .
       target: production
-    command: puma -C config/puma.rb
+    command: bundle exec puma -C config/puma.rb
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
@@ -49,7 +49,7 @@ services:
     build:
       context: .
       target: production
-    command: bin/jobs start
+    command: bundle exec bin/jobs start
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
@@ -73,7 +73,7 @@ services:
     build:
       context: .
       target: production
-    command: rails db:migrate
+    command: bundle exec rails db:migrate
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
@@ -94,7 +94,7 @@ services:
     build:
       context: .
       target: production
-    command: rails db:seed
+    command: bundle exec rails db:seed
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
