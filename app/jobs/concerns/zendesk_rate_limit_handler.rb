@@ -22,7 +22,7 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '30').to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '40').to_i
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
@@ -78,7 +78,7 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '30').to_i
+    headroom_percent = ENV.fetch('ZENDESK_RATE_LIMIT_HEADROOM_PERCENT', '40').to_i
     level = percentage_remaining < (headroom_percent / 2) ? :warn : :info
     job_log(level, rate_limit_msg)
 
