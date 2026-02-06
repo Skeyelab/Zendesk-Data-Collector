@@ -91,8 +91,8 @@ class IncrementalTicketJob < ApplicationJob
 
           # Add a small delay to stagger jobs and reduce API call rate
           # Delay is based on ticket position to spread out execution over time
-          stagger_seconds = ENV.fetch("COMMENT_JOB_STAGGER_SECONDS", "0.2").to_f
-          delay_seconds = (processed * stagger_seconds) % 5.0 # Cycle every 5 seconds max
+          stagger_seconds = ZendeskConfig::COMMENT_JOB_STAGGER_SECONDS
+          delay_seconds = (processed * stagger_seconds) % ZendeskConfig::STAGGER_CYCLE_MAX_SECONDS
 
           # Enqueue comment job if fetch_comments is enabled
           if desk.fetch_comments
@@ -104,8 +104,8 @@ class IncrementalTicketJob < ApplicationJob
           # Enqueue metrics fetch job with a slight additional delay after comments
           # This ensures metrics jobs run after comments but still with proper staggering
           if desk.fetch_metrics
-            metrics_stagger_seconds = ENV.fetch("METRICS_JOB_STAGGER_SECONDS", "0.2").to_f
-            metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % 5.0
+            metrics_stagger_seconds = ZendeskConfig::METRICS_JOB_STAGGER_SECONDS
+            metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % ZendeskConfig::STAGGER_CYCLE_MAX_SECONDS
             metrics_opts = {wait: metrics_delay_seconds.seconds}
             metrics_opts[:queue] = "metrics_closed" if closed
             FetchTicketMetricsJob.set(metrics_opts).perform_later(ticket_id, desk.id, desk.domain)
@@ -137,8 +137,7 @@ class IncrementalTicketJob < ApplicationJob
     rescue RateLimitRetry
       retry
     rescue => e
-      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
-      if is_rate_limit
+      if rate_limit_error?(e)
         response_from_error = extract_response_from_error(e)
         handle_rate_limit_error(response_from_error || e, desk, "incremental", retry_count, max_retries)
         retry_count += 1

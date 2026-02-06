@@ -136,9 +136,7 @@ class FetchTicketDetailJobBase < ApplicationJob
       # Re-raise from 429 response path – we already handled it, just retry the begin block
       retry if e.message == "Rate limit exceeded (429), retrying"
 
-      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
-
-      if is_rate_limit
+      if rate_limit_error?(e)
         job_log(:warn,
           "[#{job_name}] ⚠️  Rate limit error caught for ticket #{ticket_id} (desk: #{desk.domain}): #{e.message}")
         response_from_error = extract_response_from_error(e)

@@ -33,11 +33,11 @@ module ZendeskRateLimitHandler
     info = log_rate_limit_headers(response_or_env, job_name)
     return unless info
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "40").to_i
+    headroom_percent = ZendeskConfig::RATE_LIMIT_HEADROOM_PERCENT
     return unless info[:percentage] && info[:percentage] < headroom_percent
     return unless info[:reset]&.positive?
 
-    wait_seconds = info[:reset] + 1
+    wait_seconds = info[:reset] + ZendeskConfig::RATE_LIMIT_RESET_OFFSET
     job_log(:info,
       "[#{job_name}] Rate limit low (#{info[:percentage]}% remaining, headroom #{headroom_percent}%), backing off #{wait_seconds}s until reset")
     sleep(wait_seconds) unless Rails.env.test?
@@ -50,6 +50,19 @@ module ZendeskRateLimitHandler
     return response[:status] if response.is_a?(Hash)
 
     (response.respond_to?(:env) && response.env) ? response.env[:status] : nil
+  end
+
+  # Check if an error is a rate limit error (429 status).
+  # Provides consistent detection across all jobs without string matching duplication.
+  #
+  # @param error [StandardError] The exception to check
+  # @return [Boolean] True if the error indicates a rate limit (429) response
+  def rate_limit_error?(error)
+    return false unless error
+
+    error.message.include?("status 429") ||
+      error.message.include?("429") ||
+      error.message.include?("Rate limit exceeded")
   end
 
   # Returns parsed response body as a Hash (handles already-parsed body or JSON string).
@@ -89,7 +102,7 @@ module ZendeskRateLimitHandler
     rate_limit_msg = "[#{job_name}] X-Rate-Limit: #{rate_limit}, X-Rate-Limit-Remaining: #{rate_limit_remaining} (#{percentage_remaining}%)"
     rate_limit_msg += " (resets in #{rate_limit_reset}s)" if rate_limit_reset
 
-    headroom_percent = ENV.fetch("ZENDESK_RATE_LIMIT_HEADROOM_PERCENT", "40").to_i
+    headroom_percent = ZendeskConfig::RATE_LIMIT_HEADROOM_PERCENT
     level = (percentage_remaining < (headroom_percent / 2)) ? :warn : :info
     job_log(level, rate_limit_msg)
 
@@ -148,7 +161,7 @@ module ZendeskRateLimitHandler
     wait_seconds = retry_after + retry_count # Small incremental backoff per retry
 
     # Ensure wait_seconds is at least 1 to guarantee wait_till is in the future
-    wait_seconds = [wait_seconds, 1].max
+    wait_seconds = [wait_seconds, ZendeskConfig::RATE_LIMIT_RESET_OFFSET].max
 
     # Update desk wait_till timestamp - recalculate current_time right before update to ensure it's in the future
     new_wait_till = wait_seconds + Time.now.to_i
