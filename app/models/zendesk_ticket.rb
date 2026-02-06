@@ -1,4 +1,6 @@
 class ZendeskTicket < ApplicationRecord
+  include FieldExtractor
+
   # Disable Rails automatic timestamps - we use Zendesk's timestamps directly
   self.record_timestamps = false
 
@@ -197,33 +199,33 @@ class ZendeskTicket < ApplicationRecord
   end
 
   def extract_requester_fields(requester)
-    return unless requester.is_a?(Hash)
-
-    self.req_name = requester["name"] || requester[:name]
-    self.req_email = requester["email"] || requester[:email]
-    self.req_id = requester["id"] || requester[:id]
-    self.req_external_id = requester["external_id"]&.to_s || requester[:external_id]&.to_s
+    extract_hash_fields(requester, {
+      "name" => :req_name,
+      "email" => :req_email,
+      "id" => :req_id,
+      "external_id" => :req_external_id
+    })
   end
 
   def extract_assignee_fields(assignee)
-    return unless assignee.is_a?(Hash)
-
-    self.assignee_name = assignee["name"] || assignee[:name]
-    self.assignee_id = assignee["id"] || assignee[:id]
-    self.assignee_external_id = assignee["external_id"] || assignee[:external_id]
+    extract_hash_fields(assignee, {
+      "name" => :assignee_name,
+      "id" => :assignee_id,
+      "external_id" => :assignee_external_id
+    })
   end
 
   def extract_group_fields(group)
-    return unless group.is_a?(Hash)
-
-    self.group_name = group["name"] || group[:name]
-    self.group_id = group["id"] || group[:id]
+    extract_hash_fields(group, {
+      "name" => :group_name,
+      "id" => :group_id
+    })
   end
 
   def extract_organization_fields(organization)
-    return unless organization.is_a?(Hash)
-
-    self.organization_name = organization["name"] || organization[:name]
+    extract_hash_fields(organization, {
+      "name" => :organization_name
+    })
   end
 
   def parse_time_field(value, attribute = nil)

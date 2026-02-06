@@ -1,7 +1,64 @@
 # frozen_string_literal: true
 
 # Base class for jobs that fetch ticket details (metrics, comments) from Zendesk API.
-# Subclasses implement template methods: api_path, response_key, resource_name, delay_env_var, persist_data.
+# Uses the Template Method pattern to provide common retry logic, rate limiting,
+# and error handling while allowing subclasses to customize specific behaviors.
+#
+# == Template Methods (must be implemented by subclasses)
+#
+# [+api_path(ticket_id)+]
+#   Returns the API endpoint path for fetching the resource.
+#   Example: "/api/v2/tickets/#{ticket_id}/comments.json"
+#
+# [+response_key+]
+#   Returns the key in the JSON response containing the resource data.
+#   Example: "comments" or "ticket_metric"
+#
+# [+resource_name+]
+#   Returns a human-readable name for logging (e.g., "comments", "metrics").
+#
+# [+delay_env_var+]
+#   Returns the environment variable name for throttle delay configuration.
+#   Example: "COMMENT_JOB_DELAY_SECONDS"
+#
+# [+persist_data(ticket, data)+]
+#   Saves the fetched data to the ticket model.
+#   Example: ticket.update(comments: data)
+#
+# [+empty_value+] (optional)
+#   Returns the default value when no data is found. Defaults to {}.
+#   Override to return [] for array responses.
+#
+# [+log_received(ticket_id, data)+] (optional)
+#   Custom logging for received data. Default logs the count of items.
+#
+# == Example Subclass
+#
+#   class FetchTicketCommentsJob < FetchTicketDetailJobBase
+#     def api_path(ticket_id)
+#       "/api/v2/tickets/#{ticket_id}/comments.json"
+#     end
+#
+#     def response_key
+#       "comments"
+#     end
+#
+#     def resource_name
+#       "comments"
+#     end
+#
+#     def delay_env_var
+#       "COMMENT_JOB_DELAY_SECONDS"
+#     end
+#
+#     def empty_value
+#       []
+#     end
+#
+#     def persist_data(ticket, comments_data)
+#       ticket.update(comments: comments_data)
+#     end
+#   end
 class FetchTicketDetailJobBase < ApplicationJob
   include ZendeskRateLimitHandler
 
