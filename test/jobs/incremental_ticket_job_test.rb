@@ -40,7 +40,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
 
   test "should fetch tickets from Zendesk and save to PostgreSQL" do
     # Mock Zendesk API response
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -82,7 +82,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       status: "solved"
     )
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -107,7 +107,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should update desk last_timestamp after successful fetch" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -129,7 +129,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should handle rate limiting (429 error)" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 429,
@@ -146,7 +146,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should retry on 429 then succeed and process tickets" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         {status: 429, headers: {"Retry-After" => "1"}},
@@ -170,7 +170,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should set desk queued to false after completion" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -190,7 +190,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should handle API errors gracefully" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(status: 500, body: "Internal Server Error")
 
@@ -211,7 +211,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       @ticket_data.merge(id: 3)
     ]
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -235,7 +235,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should handle empty response" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -259,7 +259,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should not update timestamp when new_timestamp is less than or equal to start_time" do
     @desk.update!(last_timestamp: 5000)
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=5000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=5000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -287,7 +287,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       created_at: Time.now.iso8601
     }
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -318,7 +318,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       updated_at: "also-invalid"
     )
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -375,7 +375,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
       }
     ]
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -408,7 +408,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should enqueue FetchTicketCommentsJob for each ticket" do
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -432,7 +432,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should enqueue comment job even if comments API would fail" do
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -458,7 +458,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should enqueue comment job regardless of comments API rate limiting" do
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -484,7 +484,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should enqueue FetchTicketMetricsJob for each ticket" do
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -505,10 +505,69 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     assert_nil ticket.raw_data["metrics"]
   end
 
+  test "when incremental response includes metric_sets and fetch_metrics true, applies metrics to ticket and does not enqueue FetchTicketMetricsJob" do
+    @desk.update!(fetch_metrics: true)
+    ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
+
+    metric_set = {
+      ticket_id: 12_345,
+      reply_time_in_minutes: {business: 10, calendar: 15},
+      first_resolution_time_in_minutes: {business: 20, calendar: 25},
+      full_resolution_time_in_minutes: {business: 30, calendar: 35},
+      reopens: 1,
+      replies: 3
+    }
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          metric_sets: [metric_set],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_no_enqueued_jobs(only: FetchTicketMetricsJob) do
+      IncrementalTicketJob.perform_now(@desk.id)
+    end
+
+    ticket = ZendeskTicket.find_by(zendesk_id: 12_345, domain: "test.zendesk.com")
+    assert_not_nil ticket.raw_data["metrics"], "Metrics should be stored from sideloaded metric_sets"
+    assert_equal 1, ticket.raw_data["metrics"]["reopens"]
+    assert_equal 3, ticket.raw_data["metrics"]["replies"]
+  end
+
+  test "when incremental response has no metric_sets for ticket, enqueues FetchTicketMetricsJob" do
+    ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
+
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
+      .with(basic_auth: ["test@example.com/token", "test_token"])
+      .to_return(
+        status: 200,
+        body: {
+          tickets: [@ticket_data],
+          users: [],
+          metric_sets: [],
+          end_time: 2000,
+          count: 1
+        }.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+    assert_enqueued_with(job: FetchTicketMetricsJob, args: [12_345, @desk.id, "test.zendesk.com"]) do
+      IncrementalTicketJob.perform_now(@desk.id)
+    end
+  end
+
   test "should enqueue both comment and metrics jobs for updated tickets" do
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -529,7 +588,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   end
 
   test "should not enqueue comment or metrics jobs for new tickets" do
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -553,7 +612,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
     closed_ticket_data = @ticket_data.merge(status: "closed")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -579,7 +638,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
     solved_ticket_data = @ticket_data.merge(status: "solved")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -605,7 +664,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     @desk.update!(fetch_comments: false)
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -628,7 +687,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
     @desk.update!(fetch_metrics: false)
     ZendeskTicket.create!(zendesk_id: 12_345, domain: "test.zendesk.com", subject: "Old", status: "open")
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,
@@ -650,7 +709,7 @@ class IncrementalTicketJobTest < ActiveJob::TestCase
   test "should not enqueue either job when both flags are false" do
     @desk.update!(fetch_comments: false, fetch_metrics: false)
 
-    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users&start_time=1000")
+    stub_request(:get, "https://test.zendesk.com/api/v2/incremental/tickets.json?include=users%2Cmetric_sets&start_time=1000")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
         status: 200,

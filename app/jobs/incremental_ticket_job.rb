@@ -25,10 +25,10 @@ class IncrementalTicketJob < ApplicationJob
       job_log(:info,
         "[IncrementalTicketJob] Fetching tickets from Zendesk API (start_time: #{start_time}, retry: #{retry_count}/#{max_retries})")
 
-      # Fetch tickets with sideloaded users
+      # Fetch tickets with sideloaded users and metric_sets
       response = client.connection.get("/api/v2/incremental/tickets.json") do |req|
         req.params[:start_time] = start_time
-        req.params[:include] = "users"
+        req.params[:include] = "users,metric_sets"
       end
 
       # Monitor rate limit and back off when remaining is low (best practice: regulate request rate)
@@ -53,10 +53,12 @@ class IncrementalTicketJob < ApplicationJob
 
       tickets_data = response_body["tickets"] || []
       users_data = response_body["users"] || []
+      metric_sets_data = response_body["metric_sets"] || []
       end_time = response_body["end_time"]
 
       # Build user lookup map
       user_lookup = build_user_lookup(users_data)
+      metric_sets_by_ticket = build_metric_sets_by_ticket(metric_sets_data)
 
       ticket_count = tickets_data.size
       job_log(:info,
@@ -83,27 +85,35 @@ class IncrementalTicketJob < ApplicationJob
           errors += 1
         end
 
-        # Enqueue comment and metrics fetch jobs only for updates (new tickets don't have these yet)
         ticket_id = enriched_ticket["id"] || enriched_ticket[:id]
+        sideloaded_metrics = ticket_id && metric_sets_by_ticket[ticket_id]
+
+        # Apply sideloaded metrics when present so we can skip the metrics job
+        if ticket_id && result != :error && desk.fetch_metrics && sideloaded_metrics
+          ticket = ZendeskTicket.find_by(zendesk_id: ticket_id, domain: desk.domain)
+          if ticket
+            ticket.assign_metrics_data(sideloaded_metrics)
+            ticket.save!
+          end
+        end
+
+        # Enqueue comment and metrics fetch jobs only for updates (new tickets don't have these yet)
         if ticket_id && result == :updated
           status = enriched_ticket["status"] || enriched_ticket[:status]
           closed = %w[closed solved].include?(status.to_s)
 
           # Add a small delay to stagger jobs and reduce API call rate
-          # Delay is based on ticket position to spread out execution over time
           stagger_seconds = ZendeskConfig::COMMENT_JOB_STAGGER_SECONDS
           delay_seconds = (processed * stagger_seconds) % ZendeskConfig::STAGGER_CYCLE_MAX_SECONDS
 
-          # Enqueue comment job if fetch_comments is enabled
           if desk.fetch_comments
             comment_opts = {wait: delay_seconds.seconds}
             comment_opts[:queue] = "comments_closed" if closed
             FetchTicketCommentsJob.set(comment_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
 
-          # Enqueue metrics fetch job with a slight additional delay after comments
-          # This ensures metrics jobs run after comments but still with proper staggering
-          if desk.fetch_metrics
+          # Enqueue metrics job only when we did not apply sideloaded metrics
+          if desk.fetch_metrics && !sideloaded_metrics
             metrics_stagger_seconds = ZendeskConfig::METRICS_JOB_STAGGER_SECONDS
             metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % ZendeskConfig::STAGGER_CYCLE_MAX_SECONDS
             metrics_opts = {wait: metrics_delay_seconds.seconds}
@@ -166,6 +176,15 @@ class IncrementalTicketJob < ApplicationJob
     users_data.each_with_object({}) do |user, lookup|
       user_id = user.is_a?(Hash) ? (user["id"] || user[:id]) : user.id
       lookup[user_id] = user if user_id
+    end
+  end
+
+  def build_metric_sets_by_ticket(metric_sets_data)
+    return {} unless metric_sets_data.is_a?(Array)
+
+    metric_sets_data.each_with_object({}) do |ms, lookup|
+      tid = ms.is_a?(Hash) ? (ms["ticket_id"] || ms[:ticket_id]) : ms.ticket_id
+      lookup[tid] = ms if tid
     end
   end
 
