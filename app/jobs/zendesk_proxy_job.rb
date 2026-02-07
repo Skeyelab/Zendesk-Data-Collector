@@ -55,8 +55,7 @@ class ZendeskProxyJob < ApplicationJob
     rescue => e
       retry if e.message == "Rate limit exceeded (429), retrying"
 
-      is_rate_limit = e.message.to_s.include?("429") || e.message.to_s.include?("Rate limit exceeded")
-      if is_rate_limit && retry_count <= MAX_RETRIES
+      if rate_limit_error?(e) && retry_count <= MAX_RETRIES
         response_from_error = extract_response_from_error(e)
         handle_rate_limit_error(response_from_error || e, desk, path, retry_count, MAX_RETRIES)
         retry_count += 1

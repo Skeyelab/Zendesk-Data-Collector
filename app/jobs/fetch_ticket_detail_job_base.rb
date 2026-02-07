@@ -1,7 +1,64 @@
 # frozen_string_literal: true
 
 # Base class for jobs that fetch ticket details (metrics, comments) from Zendesk API.
-# Subclasses implement template methods: api_path, response_key, resource_name, delay_env_var, persist_data.
+# Uses the Template Method pattern to provide common retry logic, rate limiting,
+# and error handling while allowing subclasses to customize specific behaviors.
+#
+# == Template Methods (must be implemented by subclasses)
+#
+# [+api_path(ticket_id)+]
+#   Returns the API endpoint path for fetching the resource.
+#   Example: "/api/v2/tickets/#{ticket_id}/comments.json"
+#
+# [+response_key+]
+#   Returns the key in the JSON response containing the resource data.
+#   Example: "comments" or "ticket_metric"
+#
+# [+resource_name+]
+#   Returns a human-readable name for logging (e.g., "comments", "metrics").
+#
+# [+delay_env_var+]
+#   Returns the environment variable name for throttle delay configuration.
+#   Example: "COMMENT_JOB_DELAY_SECONDS"
+#
+# [+persist_data(ticket, data)+]
+#   Saves the fetched data to the ticket model.
+#   Example: ticket.update(comments: data)
+#
+# [+empty_value+] (optional)
+#   Returns the default value when no data is found. Defaults to {}.
+#   Override to return [] for array responses.
+#
+# [+log_received(ticket_id, data)+] (optional)
+#   Custom logging for received data. Default logs the count of items.
+#
+# == Example Subclass
+#
+#   class FetchTicketCommentsJob < FetchTicketDetailJobBase
+#     def api_path(ticket_id)
+#       "/api/v2/tickets/#{ticket_id}/comments.json"
+#     end
+#
+#     def response_key
+#       "comments"
+#     end
+#
+#     def resource_name
+#       "comments"
+#     end
+#
+#     def delay_env_var
+#       "COMMENT_JOB_DELAY_SECONDS"
+#     end
+#
+#     def empty_value
+#       []
+#     end
+#
+#     def persist_data(ticket, comments_data)
+#       ticket.update(comments: comments_data)
+#     end
+#   end
 class FetchTicketDetailJobBase < ApplicationJob
   include ZendeskRateLimitHandler
 
@@ -79,9 +136,7 @@ class FetchTicketDetailJobBase < ApplicationJob
       # Re-raise from 429 response path – we already handled it, just retry the begin block
       retry if e.message == "Rate limit exceeded (429), retrying"
 
-      is_rate_limit = e.message.include?("status 429") || e.message.include?("429") || e.message.include?("Rate limit exceeded")
-
-      if is_rate_limit
+      if rate_limit_error?(e)
         job_log(:warn,
           "[#{job_name}] ⚠️  Rate limit error caught for ticket #{ticket_id} (desk: #{desk.domain}): #{e.message}")
         response_from_error = extract_response_from_error(e)
