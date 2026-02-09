@@ -464,6 +464,77 @@ bundle exec standardrb --fix
 - **Authentication**: Devise-based authentication for admin access
 - **Rate Limiting**: Rack::Attack for request rate limiting
 - **Secure Credentials**: Environment-based configuration (no secrets in code)
+- **PII Protection**: Multi-layered PII protection with masking, encryption, and access controls (see below)
+
+### PII Protection
+
+The application implements comprehensive Personally Identifiable Information (PII) protection:
+
+#### 🔒 Three-Tier Protection Strategy
+
+1. **Display Masking** (Active)
+   - All PII fields are masked by default in the Avo admin interface
+   - Email addresses: `john@example.com` → `j***@example.com`
+   - Names: `John Doe` → `J*** D***`
+   - Comments and descriptions: Shows character count only, content hidden
+   - Search still works on unmasked database columns
+
+2. **Encryption at Rest** (Planned - Phase 2)
+   - Column-level encryption for highly sensitive fields
+   - Uses Rails ActiveRecord Encryption
+   - Encrypted fields: `req_email`, `req_external_id`, `assignee_external_id`
+
+3. **Access Control & Audit Logging** (Planned - Phase 3)
+   - Role-based access control (analyst, admin, super_admin)
+   - Audit logging for all PII access events
+   - "Unmask PII" actions tracked and logged
+
+#### 📋 PII Fields Protected
+
+- **Names**: Customer names, agent names
+- **Email addresses**: Requester and assignee emails
+- **External IDs**: Customer identifiers from external systems
+- **Free text**: Ticket descriptions and comments (may contain sensitive info)
+- **Phone numbers**: Contact information (when present)
+
+#### 📚 Documentation
+
+For developers working with PII:
+- **Comprehensive Audit**: See [`docs/PII_PROTECTION_AUDIT.md`](docs/PII_PROTECTION_AUDIT.md) for detailed PII audit and implementation plan
+- **Developer Guide**: See [`docs/PII_MASKING_GUIDE.md`](docs/PII_MASKING_GUIDE.md) for how to use PII masking functions
+
+#### 🎯 Compliance
+
+The PII protection implementation addresses:
+- **GDPR** (General Data Protection Regulation) - Article 32 (Security)
+- **CCPA** (California Consumer Privacy Act) - Data minimization
+- **SOC 2 / ISO 27001** - Access controls and encryption
+
+#### 🔍 Reporting with PII Protection
+
+You can still generate reports on ticket data while protecting PII:
+- Aggregate queries work normally (counts, averages, grouping)
+- IDs, timestamps, and metrics are not masked
+- PII masking only affects display, not database storage
+- Custom reports can query unmasked data with proper access controls
+
+Example - reporting queries that don't expose PII:
+```sql
+-- Ticket counts by status (no PII)
+SELECT status, COUNT(*) 
+FROM zendesk_tickets 
+GROUP BY status;
+
+-- Average resolution times (no PII)
+SELECT AVG(full_resolution_time_in_minutes) 
+FROM zendesk_tickets 
+WHERE status = 'solved';
+
+-- Tickets by assignee ID (no PII names)
+SELECT assignee_id, COUNT(*) 
+FROM zendesk_tickets 
+GROUP BY assignee_id;
+```
 
 ## License
 
