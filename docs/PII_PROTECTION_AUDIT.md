@@ -190,6 +190,20 @@ Zendesk API → IncrementalTicketJob → PostgreSQL (plain text)
 - ❌ Slight query performance impact (minimal)
 - ❌ Cannot use SQL LIKE queries on encrypted fields (use deterministic encryption where needed)
 
+**External System Integration Considerations**:
+- **Deterministic encryption** preserves ability to join with external systems
+- Same plaintext value always produces same encrypted value
+- JOINs work: `JOIN external_db.users ON tickets.req_email = users.email`
+- External systems must either:
+  1. Use same encryption (requires sharing encryption keys - not recommended)
+  2. Decrypt in application layer before joining (recommended)
+  3. Use non-PII join keys like `req_id` or `req_external_id` (best practice)
+
+**Recommendation for External Joins**:
+- **Preferred**: Use `req_id` (Zendesk user ID) for joins instead of email
+- **Alternative**: Decrypt email in application layer before passing to external system
+- **Avoid**: Sharing encryption keys across systems (security risk)
+
 #### Tier 2: Display Masking (Application Level)
 **Purpose**: Prevent casual exposure of PII in admin interfaces
 
@@ -307,16 +321,25 @@ end
 - `db/migrate/[timestamp]_encrypt_pii_fields.rb`
 
 **Changes**:
-- Encrypt `req_email` using deterministic encryption (allows searching)
+- Encrypt `req_email` using deterministic encryption (allows searching AND joining with external systems)
 - Encrypt `req_external_id` using non-deterministic encryption
 - Encrypt `assignee_external_id` using non-deterministic encryption
+
+**Important - External System Integration**:
+The `req_email` field uses **deterministic encryption**, which means:
+- ✅ Same email always encrypts to the same value
+- ✅ WHERE clause equality searches work: `WHERE req_email = 'john@example.com'`
+- ✅ JOINs with external systems work: `JOIN external_table ON zendesk_tickets.req_email = external_table.email`
+- ✅ Application-level decryption is transparent (Rails handles it)
+- ⚠️ External systems must use the same encryption keys to join on encrypted values
+- ⚠️ For cross-system joins, consider using `req_id` (Zendesk user ID) instead of email
 
 **Model updates**:
 - `app/models/zendesk_ticket.rb` - Add encryption declarations
 
 ```ruby
 class ZendeskTicket < ApplicationRecord
-  encrypts :req_email, deterministic: true
+  encrypts :req_email, deterministic: true  # Allows searching and joining
   encrypts :req_external_id
   encrypts :assignee_external_id
 end

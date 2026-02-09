@@ -490,6 +490,53 @@ if current_user.can_export_pii?
 end
 ```
 
+### Problem: Need to join with external systems using email
+
+**Context**: Email addresses are often used as join keys with external systems (CRM, analytics platforms, etc.)
+
+**Solutions**:
+
+**Option 1: Use non-PII join keys (Recommended)**
+```ruby
+# Best practice - join on Zendesk user ID instead of email
+SELECT t.*, e.external_data
+FROM zendesk_tickets t
+JOIN external_system.users e ON t.req_id = e.zendesk_user_id
+```
+
+**Option 2: Decrypt in application layer before joining**
+```ruby
+# Fetch tickets with decrypted emails (Rails handles decryption)
+tickets = ZendeskTicket.where(domain: 'example.zendesk.com')
+
+# Pass decrypted emails to external system API
+tickets.each do |ticket|
+  external_data = ExternalAPI.fetch_by_email(ticket.req_email)
+  # ticket.req_email is automatically decrypted by Rails
+end
+```
+
+**Option 3: Use deterministic encryption for direct DB joins (Phase 2)**
+```ruby
+# With deterministic encryption, same email always encrypts to same value
+# This allows direct JOIN in SQL (within same database)
+encrypts :req_email, deterministic: true
+
+# JOIN works because both sides use same encrypted value
+SELECT t.*, e.*
+FROM zendesk_tickets t
+JOIN other_encrypted_table e ON t.req_email = e.email
+# Both must use SAME encryption keys
+```
+
+**Important Notes**:
+- **Current Phase 1**: Email is NOT encrypted, joins work normally
+- **Phase 2**: Email will use deterministic encryption
+  - JOINs within same database work (same encryption keys)
+  - JOINs with external databases require Option 1 or 2
+- **Never** share encryption keys between different systems/databases
+- Prefer using IDs (`req_id`, `req_external_id`) over email for joins
+
 ## Questions?
 
 - See full audit: `docs/PII_PROTECTION_AUDIT.md`

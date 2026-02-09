@@ -481,8 +481,12 @@ The application implements comprehensive Personally Identifiable Information (PI
 
 2. **Encryption at Rest** (Planned - Phase 2)
    - Column-level encryption for highly sensitive fields
-   - Uses Rails ActiveRecord Encryption
+   - Uses Rails ActiveRecord Encryption with deterministic encryption
    - Encrypted fields: `req_email`, `req_external_id`, `assignee_external_id`
+   - **Important**: `req_email` uses deterministic encryption to support:
+     - WHERE clause searches: `WHERE req_email = 'john@example.com'`
+     - JOINs with other tables in same database
+     - For external system integration, use `req_id` (Zendesk user ID) as join key
 
 3. **Access Control & Audit Logging** (Planned - Phase 3)
    - Role-based access control (analyst, admin, super_admin)

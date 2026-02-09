@@ -257,8 +257,9 @@ SELECT req_email FROM zendesk_tickets WHERE zendesk_id = 12345;
 
 ### Phase 2 (Planned)
 - Column-level encryption (req_email, external IDs)
-- Rails ActiveRecord Encryption
+- Rails ActiveRecord Encryption with deterministic encryption for `req_email`
 - Minimal performance impact (<5%)
+- **External System Integration**: Use `req_id` as join key (recommended) or deterministic encryption allows JOINs within same database
 
 ### Phase 3 (Planned)
 - Role-based access control (analyst, admin, super_admin)
@@ -308,6 +309,29 @@ SELECT req_email FROM zendesk_tickets WHERE zendesk_id = 12345;
 
 ### Q: Can we roll back if there are issues?
 **A**: Yes. This is a display-only change. Revert Avo resource file to restore original display.
+
+### Q: How does encryption affect joining with external systems?
+**A**: Phase 2 uses deterministic encryption for `req_email`, which allows:
+- WHERE clause searches work normally
+- JOINs within same database work (same encryption keys)
+- **Recommended**: Use `req_id` (Zendesk user ID) as join key for external systems
+- **Alternative**: Decrypt in application layer before passing to external API
+- **Avoid**: Sharing encryption keys between systems (security risk)
+
+Example JOIN strategies:
+```sql
+-- Best practice: Join on non-PII ID
+SELECT t.*, e.data FROM zendesk_tickets t
+JOIN external_system.users e ON t.req_id = e.zendesk_user_id
+
+-- Phase 1 (current): Email not encrypted, direct JOIN works
+SELECT t.*, e.data FROM zendesk_tickets t
+JOIN external_system.users e ON t.req_email = e.email
+
+-- Phase 2: Decrypt in app layer for external system integration
+tickets = ZendeskTicket.all  # Rails decrypts req_email automatically
+ExternalAPI.sync_with_emails(tickets.map(&:req_email))
+```
 
 ---
 
