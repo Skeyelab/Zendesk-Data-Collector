@@ -97,5 +97,13 @@ test:
 #
 production:
   <<: *default
+  <% if ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
   url: <%= ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  <% else %>
+  host: <%= ENV.fetch('SERVICE_NAME_POSTGRES', ENV.fetch('POSTGRES_HOST', 'postgres')) %>
+  port: 5432
+  database: <%= ENV.fetch('POSTGRES_DB', 'zd_desk_data_collector_production') %>
+  username: <%= ENV.fetch('POSTGRES_USER', 'postgres') %>
+  password: <%= ENV.fetch('POSTGRES_PASSWORD', 'postgres') %>
+  <% end %>
 
