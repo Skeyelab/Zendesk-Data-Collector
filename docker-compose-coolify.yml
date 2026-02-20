@@ -1,3 +1,16 @@
+# Required in Coolify Application env / .env (or deployment fails at migrate):
+#   SECRET_KEY_BASE or SERVICE_PASSWORD_WEB
+#   SERVICE_PASSWORD_ENCRYPTION_PRIMARY_KEY_64
+#   SERVICE_PASSWORD_ENCRYPTION_DETERMINISTIC_KEY_64
+#   SERVICE_PASSWORD_ENCRYPTION_KEY_DERIVATION_SALT_64
+#   SERVICE_FQDN_WEB_3000 (e.g. zddc.noctua.ericdahl.dev)
+#   DEFAULT_ADMIN_PW (for seed)
+#   WEBHOOKS_TICKETS_SECRET
+# Optional: POSTGRES_PASSWORD, POSTGRES_USER, POSTGRES_DB (have defaults)
+# Note: DATABASE_URL is intentionally NOT set here. Rails builds the connection
+# from component vars (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB) plus
+# SERVICE_NAME_POSTGRES (injected by Coolify) for the host. This ensures PR
+# preview deployments resolve the correct postgres hostname (e.g. postgres-pr-101).
 services:
   postgres:
     image: postgres:16
@@ -25,7 +38,9 @@ services:
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}
+      - POSTGRES_DB=${POSTGRES_DB:-zd_desk_data_collector_production}
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - RAILS_LOG_TO_STDOUT=true
@@ -53,7 +68,9 @@ services:
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}
+      - POSTGRES_DB=${POSTGRES_DB:-zd_desk_data_collector_production}
       - RAILS_LOG_TO_STDOUT=true
       - RAILS_MAX_THREADS=${RAILS_MAX_THREADS:-5}
       - SOLID_QUEUE_CONCURRENCY=${SOLID_QUEUE_CONCURRENCY:-5}
@@ -77,7 +94,9 @@ services:
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}
+      - POSTGRES_DB=${POSTGRES_DB:-zd_desk_data_collector_production}
       - SERVICE_PASSWORD_ENCRYPTION_PRIMARY_KEY_64
       - SERVICE_PASSWORD_ENCRYPTION_DETERMINISTIC_KEY_64
       - SERVICE_PASSWORD_ENCRYPTION_KEY_DERIVATION_SALT_64
@@ -98,7 +117,9 @@ services:
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SERVICE_PASSWORD_WEB:-${SECRET_KEY_BASE}}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}@postgres:5432/${POSTGRES_DB:-zd_desk_data_collector_production}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASSWORD:-postgres}}
+      - POSTGRES_DB=${POSTGRES_DB:-zd_desk_data_collector_production}
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin@example.com}
       - DEFAULT_ADMIN_PW=${DEFAULT_ADMIN_PW}
       - SERVICE_PASSWORD_ENCRYPTION_PRIMARY_KEY_64

@@ -1,5 +1,6 @@
 class ZendeskTicket < ApplicationRecord
   include FieldExtractor
+  include PiiMaskable
 
   # Disable Rails automatic timestamps - we use Zendesk's timestamps directly
   self.record_timestamps = false
