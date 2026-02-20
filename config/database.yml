@@ -97,8 +97,17 @@ test:
 #
 production:
   <<: *default
-  <% if ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
-  url: <%= ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  <%
+    db_url = ENV['DATABASE_URI'] || ENV['DATABASE_URL']
+    if db_url && ENV['SERVICE_NAME_POSTGRES']
+      require 'uri'
+      parsed = URI.parse(db_url)
+      parsed.host = ENV['SERVICE_NAME_POSTGRES']
+      db_url = parsed.to_s
+    end
+  %>
+  <% if db_url %>
+  url: <%= db_url %>
   <% else %>
   host: <%= ENV.fetch('SERVICE_NAME_POSTGRES', ENV.fetch('POSTGRES_HOST', 'postgres')) %>
   port: 5432
