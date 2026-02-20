@@ -97,17 +97,19 @@ test:
 #
 production:
   <<: *default
-  <%
-    db_url = ENV['DATABASE_URI'] || ENV['DATABASE_URL']
-    if db_url && ENV['SERVICE_NAME_POSTGRES']
-      require 'uri'
-      parsed = URI.parse(db_url)
-      parsed.host = ENV['SERVICE_NAME_POSTGRES']
-      db_url = parsed.to_s
-    end
-  %>
-  <% if db_url %>
-  url: <%= db_url %>
+  <% if ENV['SERVICE_NAME_POSTGRES'] %>
+  host: <%= ENV['SERVICE_NAME_POSTGRES'] %>
+  port: 5432
+  database: <%= ENV.fetch('POSTGRES_DB', 'zd_desk_data_collector_production') %>
+  username: <%= ENV.fetch('POSTGRES_USER', 'postgres') %>
+  password: <%= begin
+    value = ENV['POSTGRES_PASSWORD']
+    value = ENV['SERVICE_PASSWORD_POSTGRES'] if value.nil? || value.empty?
+    value = 'postgres' if value.nil? || value.empty?
+    value
+  end %>
+  <% elsif ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URI'] || ENV['DATABASE_URL'] %>
   <% else %>
   host: <%= ENV.fetch('SERVICE_NAME_POSTGRES', ENV.fetch('POSTGRES_HOST', 'postgres')) %>
   port: 5432
