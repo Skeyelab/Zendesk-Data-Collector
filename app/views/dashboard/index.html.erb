@@ -7,31 +7,40 @@
     background-color: #f5f5f5;
     min-height: 100vh;
   }
-  
+
   .dashboard-header {
     margin-bottom: 2rem;
   }
-  
+
   .dashboard-title {
     font-size: 2rem;
     font-weight: 700;
     color: #1a1a1a;
     margin: 0 0 0.5rem 0;
   }
-  
+
   .dashboard-subtitle {
     color: #666;
     font-size: 1rem;
     margin: 0;
   }
-  
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 2rem 0 1rem 0;
+  }
+
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
-  
+
   .metric-card {
     background: white;
     border-radius: 8px;
@@ -39,56 +48,85 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.2s;
   }
-  
+
   .metric-card:hover {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
-  
+
+  .metric-card.highlight {
+    border-left: 4px solid #e53e3e;
+  }
+
+  .metric-card.positive {
+    border-left: 4px solid #38a169;
+  }
+
   .metric-label {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 500;
     color: #666;
     margin: 0 0 0.5rem 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  
+
   .metric-value {
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     font-weight: 700;
     color: #1a1a1a;
     margin: 0 0 0.5rem 0;
   }
-  
+
+  .metric-value--na {
+    color: #999;
+  }
+
   .metric-description {
     font-size: 0.75rem;
     color: #999;
     margin: 0;
   }
-  
+
   .chart-card {
     background: white;
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
-  
+
   .chart-title {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #1a1a1a;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1.25rem 0;
   }
-  
+
+  .charts-2col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .no-data {
+    color: #999;
+    text-align: center;
+    padding: 2rem;
+    margin: 0;
+  }
+
   @media (max-width: 768px) {
     .dashboard-container {
       padding: 1rem;
     }
-    
+
     .metrics-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .charts-2col {
       grid-template-columns: 1fr;
     }
-    
+
     .dashboard-title {
       font-size: 1.5rem;
     }
@@ -97,61 +135,144 @@
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1 class="dashboard-title">Zendesk Metrics</h1>
-    <p class="dashboard-subtitle">Overview of Zendesk tickets and desks</p>
+    <h1 class="dashboard-title">Zendesk CS Dashboard</h1>
+    <p class="dashboard-subtitle">Real-time overview of support performance</p>
   </div>
 
+  <%# ── Workload snapshot ──────────────────────────────────────── %>
+  <p class="section-title">Workload</p>
   <div class="metrics-grid">
+    <div class="metric-card highlight">
+      <h3 class="metric-label">Open Tickets</h3>
+      <p class="metric-value"><%= number_with_delimiter(@open_tickets) %></p>
+      <p class="metric-description">New, open &amp; pending</p>
+    </div>
+
     <div class="metric-card">
       <h3 class="metric-label">Total Tickets</h3>
       <p class="metric-value"><%= number_with_delimiter(@total_tickets) %></p>
-      <p class="metric-description">Total number of Zendesk tickets</p>
+      <p class="metric-description">All tickets ever received</p>
+    </div>
+
+    <div class="metric-card positive">
+      <h3 class="metric-label">Solved (Last 7 Days)</h3>
+      <p class="metric-value"><%= number_with_delimiter(@solved_last_7_days) %></p>
+      <p class="metric-description">Tickets resolved this week</p>
+    </div>
+
+    <div class="metric-card positive">
+      <h3 class="metric-label">Solved (Last 30 Days)</h3>
+      <p class="metric-value"><%= number_with_delimiter(@solved_last_30_days) %></p>
+      <p class="metric-description">Tickets resolved this month</p>
     </div>
 
     <div class="metric-card">
       <h3 class="metric-label">Active Desks</h3>
       <p class="metric-value"><%= @active_desks %></p>
-      <p class="metric-description">Number of active Zendesk desks</p>
+      <p class="metric-description">Zendesk accounts syncing</p>
+    </div>
+  </div>
+
+  <%# ── SLA / Time metrics ─────────────────────────────────────── %>
+  <p class="section-title">Response &amp; Resolution Times</p>
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <h3 class="metric-label">Avg First Reply</h3>
+      <% if @avg_first_reply_formatted %>
+        <p class="metric-value"><%= @avg_first_reply_formatted %></p>
+        <p class="metric-description">Average time to first response</p>
+      <% else %>
+        <p class="metric-value metric-value--na">N/A</p>
+        <p class="metric-description">No first-reply data available</p>
+      <% end %>
     </div>
 
     <div class="metric-card">
       <h3 class="metric-label">Avg Resolution Time</h3>
       <% if @has_resolution_data %>
         <p class="metric-value"><%= @avg_resolution_time_formatted %></p>
-        <p class="metric-description">Average resolution time</p>
+        <p class="metric-description">Average time to fully resolve</p>
       <% else %>
-        <p class="metric-value" style="color: #999;">N/A</p>
+        <p class="metric-value metric-value--na">N/A</p>
         <p class="metric-description">No resolution time data available</p>
       <% end %>
     </div>
   </div>
 
-  <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+  <%# ── Status &amp; Priority ────────────────────────────────────── %>
+  <p class="section-title">Ticket Distribution</p>
+  <div class="charts-2col">
     <div class="chart-card">
-      <h3 class="chart-title">Tickets by Status</h3>
+      <h3 class="chart-title">By Status</h3>
       <% if @tickets_by_status.present? && @tickets_by_status.any? %>
-        <%= pie_chart @tickets_by_status, height: "300px", library: { plugins: { legend: { position: "right" } } } %>
+        <%= pie_chart @tickets_by_status, height: "280px", library: { plugins: { legend: { position: "right" } } } %>
       <% else %>
-        <p style="color: #999; text-align: center; padding: 2rem;">No ticket data available</p>
+        <p class="no-data">No ticket data available</p>
       <% end %>
     </div>
 
     <div class="chart-card">
-      <h3 class="chart-title">Tickets by Priority</h3>
+      <h3 class="chart-title">By Priority</h3>
       <% if @tickets_by_priority.present? && @tickets_by_priority.any? %>
-        <%= bar_chart @tickets_by_priority, height: "300px", library: { plugins: { legend: { display: false } } } %>
+        <%= bar_chart @tickets_by_priority, height: "280px", library: { plugins: { legend: { display: false } } } %>
       <% else %>
-        <p style="color: #999; text-align: center; padding: 2rem;">No priority data available</p>
+        <p class="no-data">No priority data available</p>
       <% end %>
     </div>
   </div>
 
-  <div class="chart-card" style="margin-top: 1.5rem;">
-    <h3 class="chart-title">Tickets Over Time</h3>
+  <%# ── Channel &amp; Satisfaction ─────────────────────────────── %>
+  <p class="section-title">Channels &amp; Customer Satisfaction</p>
+  <div class="charts-2col">
+    <div class="chart-card">
+      <h3 class="chart-title">By Channel (Via)</h3>
+      <% if @tickets_by_channel.present? && @tickets_by_channel.any? %>
+        <%= pie_chart @tickets_by_channel, height: "280px", library: { plugins: { legend: { position: "right" } } } %>
+      <% else %>
+        <p class="no-data">No channel data available</p>
+      <% end %>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">Satisfaction Scores (CSAT)</h3>
+      <% if @satisfaction_scores.present? && @satisfaction_scores.any? %>
+        <%= bar_chart @satisfaction_scores, height: "280px", library: { plugins: { legend: { display: false } } } %>
+      <% else %>
+        <p class="no-data">No satisfaction score data available</p>
+      <% end %>
+    </div>
+  </div>
+
+  <%# ── Agent &amp; Group workload ──────────────────────────────── %>
+  <p class="section-title">Agent &amp; Group Workload</p>
+  <div class="charts-2col">
+    <div class="chart-card">
+      <h3 class="chart-title">Top 10 Assignees (All-time)</h3>
+      <% if @top_assignees.present? && @top_assignees.any? %>
+        <%= bar_chart @top_assignees, height: "280px", library: { indexAxis: "y", plugins: { legend: { display: false } } } %>
+      <% else %>
+        <p class="no-data">No assignee data available</p>
+      <% end %>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">By Group</h3>
+      <% if @tickets_by_group.present? && @tickets_by_group.any? %>
+        <%= bar_chart @tickets_by_group, height: "280px", library: { indexAxis: "y", plugins: { legend: { display: false } } } %>
+      <% else %>
+        <p class="no-data">No group data available</p>
+      <% end %>
+    </div>
+  </div>
+
+  <%# ── Volume over time ────────────────────────────────────────── %>
+  <p class="section-title">Volume Over Time</p>
+  <div class="chart-card">
+    <h3 class="chart-title">Tickets Created per Day</h3>
     <% if @tickets_over_time.present? && @tickets_over_time.any? %>
       <%= line_chart @tickets_over_time, height: "300px", discrete: true, library: { plugins: { legend: { display: false }, tooltip: { mode: "index", intersect: false } }, scales: { x: { ticks: { maxRotation: 45, minRotation: 45, maxTicksLimit: 20 } } } } %>
     <% else %>
-      <p style="color: #999; text-align: center; padding: 2rem;">No time series data available</p>
+      <p class="no-data">No time series data available</p>
     <% end %>
   </div>
 </div>
