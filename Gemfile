@@ -25,7 +25,7 @@ gem "mission_control-jobs"
 gem "solid_queue"
 
 # Admin interface
-gem "avo", "~> 3.0"
+gem "avo", "~> 3.30"
 gem "chartkick"
 gem "ransack"
 
