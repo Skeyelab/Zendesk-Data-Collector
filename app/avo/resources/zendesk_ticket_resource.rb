@@ -5,6 +5,8 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
   self.default_sort_column = :updated_at
   self.default_sort_direction = :desc
 
+  # Search still works on unmasked database columns
+  # Results are displayed with masked PII in the UI
   self.search = {
     query: lambda {
       search_term = params[:q]
@@ -58,14 +60,20 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :ticket_type, as: :text, sortable: true
     field :url, as: :text
 
-    # Requester fields
-    field :req_name, as: :text, sortable: true
-    field :req_email, as: :text, sortable: true
+    # Requester fields (masked for PII protection)
+    field :req_name, as: :text, sortable: true, name: "Requester Name (masked)" do
+      record.masked_req_name
+    end
+    field :req_email, as: :text, sortable: true, name: "Requester Email (masked)" do
+      record.masked_req_email
+    end
     field :req_id, as: :number, sortable: true
     field :req_external_id, as: :text
 
-    # Assignee fields
-    field :assignee_name, as: :text, sortable: true
+    # Assignee fields (masked for PII protection)
+    field :assignee_name, as: :text, sortable: true, name: "Assignee Name (masked)" do
+      record.masked_assignee_name
+    end
     field :assignee_id, as: :number, sortable: true
     field :assignee_external_id, as: :number
 
@@ -94,8 +102,37 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :via, as: :text
     field :satisfaction_score, as: :text, sortable: true
 
-    # JSONB raw_data - show as pretty JSON (value is a Hash from jsonb deserialization)
-    field :raw_data, as: :code, readonly: true, language: :json,
-      format_using: -> { value.is_a?(Hash) ? JSON.pretty_generate(value) : value.to_s }
+    # JSONB raw_data - show redacted version with PII masked (value is a Hash from jsonb deserialization)
+    field :raw_data, as: :code, readonly: true, language: :json, name: "Raw Data (PII Redacted)",
+      format_using: -> {
+        if record.respond_to?(:pii_redacted_raw_data)
+          JSON.pretty_generate(record.pii_redacted_raw_data)
+        elsif value.is_a?(Hash)
+          JSON.pretty_generate(value)
+        else
+          value.to_s
+        end
+      }
+
+    # Comment metadata section (shows count and metadata without exposing content)
+    field :comments_section, as: :heading, only_on: :show, hide_on_index: true do
+      if record.has_comments?
+        "Comments (#{record.comments_count})"
+      else
+        "Comments (0)"
+      end
+    end
+
+    field :comments_info, as: :text, only_on: :show, hide_on_index: true, name: "Comment Summary" do
+      if record.has_comments?
+        metadata = record.comments_metadata
+        summary = metadata.map do |m|
+          "Comment ##{m[:id]}: #{m[:body_length]} chars by user #{m[:author_id]} at #{m[:created_at]}"
+        end.join("\n")
+        summary
+      else
+        "No comments"
+      end
+    end
   end
 end
