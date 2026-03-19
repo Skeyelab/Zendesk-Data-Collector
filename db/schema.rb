@@ -59,7 +59,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.string "user"
     t.integer "wait_till"
     t.integer "wait_till_event"
-    t.index ["active", "queued"], name: "index_desks_on_active_and_queued"
     t.index ["domain"], name: "index_desks_on_domain", unique: true
   end
 
@@ -199,9 +198,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.bigint "assignee_id"
     t.string "assignee_name"
     t.string "assignee_stations"
+    t.datetime "assignee_updated_at"
     t.datetime "created_at", null: false
     t.text "current_tags"
+    t.datetime "custom_status_updated_at"
     t.string "domain", null: false
+    t.datetime "due_at"
     t.string "due_date"
     t.integer "first_reply_time_in_minutes"
     t.integer "first_reply_time_in_minutes_within_business_hours"
@@ -214,6 +216,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.string "group_name"
     t.string "group_stations"
     t.datetime "initially_assigned_at"
+    t.datetime "latest_comment_added_at"
     t.integer "on_hold_time_in_minutes"
     t.integer "on_hold_time_in_minutes_within_business_hours"
     t.string "organization_name"
@@ -225,12 +228,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.string "req_external_id"
     t.bigint "req_id"
     t.string "req_name"
+    t.datetime "requester_updated_at"
     t.integer "requester_wait_time_in_minutes"
     t.integer "requester_wait_time_in_minutes_within_business_hours"
     t.string "resolution_time"
     t.string "satisfaction_score"
     t.datetime "solved_at"
     t.string "status"
+    t.datetime "status_updated_at"
     t.string "subject"
     t.string "ticket_type"
     t.datetime "updated_at", null: false
@@ -240,8 +245,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.index ["created_at"], name: "index_zendesk_tickets_on_created_at"
     t.index ["domain", "req_id"], name: "index_zendesk_tickets_on_domain_req_id"
     t.index ["domain", "status", "created_at"], name: "index_zendesk_tickets_on_domain_status_created_at"
-    t.index ["full_resolution_time_in_minutes"], name: "index_zendesk_tickets_on_full_resolution_time_in_minutes"
-    t.index ["priority"], name: "index_zendesk_tickets_on_priority"
     t.index ["status"], name: "index_zendesk_tickets_on_status"
     t.index ["updated_at"], name: "index_zendesk_tickets_on_updated_at"
     t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
