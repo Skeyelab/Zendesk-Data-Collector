@@ -50,6 +50,7 @@ group :development do
   gem "pry-rails"
   gem "seed_dump"
   gem "standard"
+  gem "standard-rails"
 end
 
 group :test do
