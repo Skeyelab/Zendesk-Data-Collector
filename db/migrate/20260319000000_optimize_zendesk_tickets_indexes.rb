@@ -1,21 +1,21 @@
 class OptimizeZendeskTicketsIndexes < ActiveRecord::Migration[8.1]
   def up
     # Drop 1 GB GIN index — never used; raw_data is read as a blob, not searched
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_raw_data
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_raw_data, if_exists: true
 
     # Drop indexes with zero scans that are never queried
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_zendesk_id          # redundant with (zendesk_id, domain) unique
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_requester_updated_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_custom_status_updated_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_latest_comment_added_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_solved_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_assignee_updated_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_status_updated_at
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_generated_timestamp
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_assignee_id          # noctua queries raw_data->>'assignee_id', not this column
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_domain               # domain always paired with status
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_group_id             # never queried
-    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_due_at               # never queried
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_zendesk_id, if_exists: true           # redundant with (zendesk_id, domain) unique
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_requester_updated_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_custom_status_updated_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_latest_comment_added_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_solved_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_assignee_updated_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_status_updated_at, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_generated_timestamp, if_exists: true
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_assignee_id, if_exists: true          # noctua queries raw_data->>'assignee_id', not this column
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_domain, if_exists: true               # domain always paired with status
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_group_id, if_exists: true             # never queried
+    remove_index :zendesk_tickets, name: :index_zendesk_tickets_on_due_at, if_exists: true               # never queried
 
     # Add composite indexes matching actual query patterns
     # Nearly every query: WHERE domain = ? AND status (NOT) IN (...)  ORDER BY created_at

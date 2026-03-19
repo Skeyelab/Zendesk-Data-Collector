@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_04_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -237,19 +237,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_04_120000) do
     t.string "url"
     t.string "via"
     t.integer "zendesk_id", null: false
-    t.index ["assignee_id"], name: "index_zendesk_tickets_on_assignee_id"
     t.index ["created_at"], name: "index_zendesk_tickets_on_created_at"
-    t.index ["domain"], name: "index_zendesk_tickets_on_domain"
+    t.index ["domain", "req_id"], name: "index_zendesk_tickets_on_domain_req_id"
+    t.index ["domain", "status", "created_at"], name: "index_zendesk_tickets_on_domain_status_created_at"
     t.index ["full_resolution_time_in_minutes"], name: "index_zendesk_tickets_on_full_resolution_time_in_minutes"
-    t.index ["generated_timestamp"], name: "index_zendesk_tickets_on_generated_timestamp"
-    t.index ["group_id"], name: "index_zendesk_tickets_on_group_id"
     t.index ["priority"], name: "index_zendesk_tickets_on_priority"
-    t.index ["raw_data"], name: "index_zendesk_tickets_on_raw_data", using: :gin
-    t.index ["solved_at"], name: "index_zendesk_tickets_on_solved_at"
     t.index ["status"], name: "index_zendesk_tickets_on_status"
     t.index ["updated_at"], name: "index_zendesk_tickets_on_updated_at"
     t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
-    t.index ["zendesk_id"], name: "index_zendesk_tickets_on_zendesk_id"
   end
 
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
