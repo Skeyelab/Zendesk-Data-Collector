@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_19_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -190,6 +190,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "zendesk_ticket_comments", force: :cascade do |t|
+    t.bigint "zendesk_ticket_id", null: false
+    t.bigint "zendesk_comment_id", null: false
+    t.bigint "author_id"
+    t.text "body"
+    t.text "plain_body"
+    t.boolean "public", default: true
+    t.jsonb "via"
+    t.datetime "created_at", null: false
+    t.index ["zendesk_ticket_id", "zendesk_comment_id"], name: "index_ztc_on_ticket_and_comment", unique: true
+  end
+
   create_table "zendesk_tickets", force: :cascade do |t|
     t.integer "agent_wait_time_in_minutes"
     t.integer "agent_wait_time_in_minutes_within_business_hours"
@@ -250,6 +262,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_000000) do
     t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
   end
 
+  add_foreign_key "zendesk_ticket_comments", "zendesk_tickets"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

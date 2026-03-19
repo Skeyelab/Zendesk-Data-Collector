@@ -31,7 +31,21 @@ class FetchTicketCommentsJob < FetchTicketDetailJobBase
   end
 
   def persist_data(ticket, data)
-    updated_raw_data = ticket.raw_data.merge("comments" => data)
-    ticket.update_columns(raw_data: updated_raw_data)
+    rows = data.map { |c| map_comment(ticket, c) }
+    ZendeskTicketComment.upsert_all(rows, unique_by: [:zendesk_ticket_id, :zendesk_comment_id])
+    ticket.update_columns(raw_data: ticket.raw_data.except("comments"))
+  end
+
+  def map_comment(ticket, comment)
+    {
+      zendesk_ticket_id: ticket.id,
+      zendesk_comment_id: comment["id"],
+      author_id: comment["author_id"],
+      body: comment["body"],
+      plain_body: comment["plain_body"],
+      public: comment.fetch("public", true),
+      via: comment["via"],
+      created_at: comment["created_at"]
+    }
   end
 end

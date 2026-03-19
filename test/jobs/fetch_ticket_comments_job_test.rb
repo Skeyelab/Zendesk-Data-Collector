@@ -35,13 +35,12 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       )
   end
 
-  test "should fetch and update ticket comments" do
+  test "should fetch and store comments in zendesk_ticket_comments table" do
     comments_data = [
       {
         id: 1,
         type: "Comment",
         body: "This is the first comment",
-        html_body: "<p>This is the first comment</p>",
         plain_body: "This is the first comment",
         public: true,
         author_id: 12_345,
@@ -51,7 +50,6 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
         id: 2,
         type: "Comment",
         body: "This is the second comment",
-        html_body: "<p>This is the second comment</p>",
         plain_body: "This is the second comment",
         public: false,
         author_id: 67_890,
@@ -61,19 +59,56 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
 
     stub_comments_api(12_345, comments_data)
 
+    assert_difference "ZendeskTicketComment.count", 2 do
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
+
+    first = ZendeskTicketComment.find_by(zendesk_comment_id: 1)
+    second = ZendeskTicketComment.find_by(zendesk_comment_id: 2)
+
+    assert_not_nil first
+    assert_equal "This is the first comment", first.body
+    assert_equal true, first.public
+
+    assert_not_nil second
+    assert_equal "This is the second comment", second.body
+    assert_equal false, second.public
+  end
+
+  test "should strip comments from raw_data after persisting" do
+    @ticket.update_columns(raw_data: @ticket.raw_data.merge("comments" => [{"id" => 99, "body" => "old"}]))
+
+    comments_data = [{id: 1, body: "New comment", plain_body: "New comment", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
+    stub_comments_api(12_345, comments_data)
+
     FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
 
     @ticket.reload
-    assert_not_nil @ticket.raw_data["comments"]
-    assert_equal 2, @ticket.raw_data["comments"].size
-    assert_equal "This is the first comment", @ticket.raw_data["comments"][0]["body"]
-    assert_equal "This is the second comment", @ticket.raw_data["comments"][1]["body"]
-    assert_equal true, @ticket.raw_data["comments"][0]["public"]
-    assert_equal false, @ticket.raw_data["comments"][1]["public"]
+    assert_nil @ticket.raw_data["comments"]
+  end
+
+  test "should preserve other raw_data fields when updating comments" do
+    @ticket.update_columns(raw_data: {
+      "id" => 12_345,
+      "subject" => "Test Ticket",
+      "status" => "open",
+      "priority" => "high",
+      "custom_field" => "value"
+    })
+
+    comments_data = [{id: 1, body: "Test comment", plain_body: "Test comment", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
+    stub_comments_api(12_345, comments_data)
+
+    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+
+    @ticket.reload
+    assert_equal "Test Ticket", @ticket.raw_data["subject"]
+    assert_equal "high", @ticket.raw_data["priority"]
+    assert_equal "value", @ticket.raw_data["custom_field"]
+    assert_nil @ticket.raw_data["comments"]
   end
 
   test "should handle missing ticket gracefully" do
-    # Should not raise an error, just log a warning
     assert_nothing_raised do
       FetchTicketCommentsJob.perform_now(99_999, @desk.id, "test.zendesk.com")
     end
@@ -86,36 +121,25 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
       FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
-    @ticket.reload
-    # Ticket should still exist, comments should not be updated
-    assert_not_nil @ticket
-    assert_nil @ticket.raw_data["comments"]
+    assert_equal 0, ZendeskTicketComment.where(zendesk_ticket_id: @ticket.id).count
+  end
+
+  test "should handle empty comments response" do
+    stub_comments_api(12_345, [])
+
+    assert_no_difference "ZendeskTicketComment.count" do
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
   end
 
   test "should handle rate limiting (429 error) with retry" do
-    comments_data = [
-      {
-        id: 1,
-        body: "Test comment",
-        created_at: "2024-01-01T10:00:00Z"
-      }
-    ]
+    comments_data = [{id: 1, body: "Test comment", plain_body: "Test comment", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
 
-    # First call returns 429, second succeeds
     stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/comments.json")
       .with(basic_auth: ["test@example.com/token", "test_token"])
       .to_return(
-        {
-          status: 429,
-          headers: {
-            "Retry-After" => "1"
-          }
-        },
-        {
-          status: 200,
-          body: {comments: comments_data}.to_json,
-          headers: {"Content-Type" => "application/json"}
-        }
+        {status: 429, headers: {"Retry-After" => "1"}},
+        {status: 200, body: {comments: comments_data}.to_json, headers: {"Content-Type" => "application/json"}}
       )
 
     assert_nothing_raised do
@@ -123,77 +147,21 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     end
 
     @desk.reload
-    # wait_till should be set from the rate limit
     assert_not_nil @desk.wait_till
     assert @desk.wait_till > 0
-
-    @ticket.reload
-    # Comments should be updated after retry
-    assert_not_nil @ticket.raw_data["comments"]
-    assert_equal 1, @ticket.raw_data["comments"].size
-  end
-
-  test "should handle empty comments response" do
-    stub_comments_api(12_345, [])
-
-    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
-
-    @ticket.reload
-    # Should not crash, but comments may or may not be set
-    assert_not_nil @ticket
-  end
-
-  test "should preserve existing raw_data when updating comments" do
-    # Set some existing data in raw_data
-    @ticket.update_columns(raw_data: {
-      "id" => 12_345,
-      "subject" => "Test Ticket",
-      "status" => "open",
-      "priority" => "high",
-      "custom_field" => "value"
-    })
-
-    comments_data = [
-      {
-        id: 1,
-        body: "Test comment",
-        created_at: "2024-01-01T10:00:00Z"
-      }
-    ]
-
-    stub_comments_api(12_345, comments_data)
-
-    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
-
-    @ticket.reload
-    # Should preserve existing fields
-    assert_equal "Test Ticket", @ticket.raw_data["subject"]
-    assert_equal "open", @ticket.raw_data["status"]
-    assert_equal "high", @ticket.raw_data["priority"]
-    assert_equal "value", @ticket.raw_data["custom_field"]
-    # Should add comments
-    assert_not_nil @ticket.raw_data["comments"]
-    assert_equal 1, @ticket.raw_data["comments"].size
+    assert_equal 1, ZendeskTicketComment.where(zendesk_ticket_id: @ticket.id).count
   end
 
   test "should handle max retries on rate limit" do
-    # Always return 429
     stub_request(:get, "https://test.zendesk.com/api/v2/tickets/12345/comments.json")
       .with(basic_auth: ["test@example.com/token", "test_token"])
-      .to_return(
-        status: 429,
-        headers: {
-          "Retry-After" => "1"
-        }
-      )
+      .to_return(status: 429, headers: {"Retry-After" => "1"})
 
     assert_nothing_raised do
       FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
 
-    @ticket.reload
-    # Comments should not be updated after max retries
-    assert_nil @ticket.raw_data["comments"]
+    assert_equal 0, ZendeskTicketComment.where(zendesk_ticket_id: @ticket.id).count
   end
 
   test "should handle network errors gracefully" do
@@ -204,9 +172,18 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     assert_nothing_raised do
       FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
+  end
 
-    @ticket.reload
-    # Ticket should still exist
-    assert_not_nil @ticket
+  test "should upsert on re-fetch (idempotent)" do
+    comments_data = [{id: 1, body: "Original body", plain_body: "Original body", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
+    stub_comments_api(12_345, comments_data)
+    FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+
+    updated_comments = [{id: 1, body: "Updated body", plain_body: "Updated body", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
+    stub_comments_api(12_345, updated_comments)
+
+    assert_no_difference "ZendeskTicketComment.count" do
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
   end
 end

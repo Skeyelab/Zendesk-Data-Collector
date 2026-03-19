@@ -11,6 +11,8 @@ class ZendeskTicket < ApplicationRecord
   validates :zendesk_id, presence: true
   validates :domain, presence: true
 
+  has_many :zendesk_ticket_comments, dependent: :destroy
+
   # Scopes
   scope :for_domain, ->(domain) { where(domain: domain) }
   scope :recent, -> { order(generated_timestamp: :desc) }
