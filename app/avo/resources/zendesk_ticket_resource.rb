@@ -88,7 +88,7 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
       as: :has_many,
       name: "Comments",
       use_resource: Avo::Resources::ZendeskTicketCommentResource,
-      scope: -> { query.order(created_at: :asc) }
+      scope: -> { query.order(zendesk_comment_id: :asc) }
 
     # Time metrics
     field :first_reply_time_in_minutes, as: :number, readonly: true, sortable: true
