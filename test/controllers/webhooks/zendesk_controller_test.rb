@@ -5,6 +5,7 @@ class WebhooksZendeskControllerTest < ActionDispatch::IntegrationTest
   setup do
     # Set up webhook secret for tests
     @original_secret = ENV["WEBHOOKS_ZENDESK_SECRET"]
+    @original_tickets_secret = ENV["WEBHOOKS_TICKETS_SECRET"]
     ENV["WEBHOOKS_ZENDESK_SECRET"] = "test_webhook_secret_123"
 
     @desk = Desk.create!(
@@ -22,6 +23,7 @@ class WebhooksZendeskControllerTest < ActionDispatch::IntegrationTest
 
   teardown do
     ENV["WEBHOOKS_ZENDESK_SECRET"] = @original_secret
+    ENV["WEBHOOKS_TICKETS_SECRET"] = @original_tickets_secret
   end
 
   # ========== Tickets Resource Tests ==========
@@ -344,8 +346,6 @@ class WebhooksZendeskControllerTest < ActionDispatch::IntegrationTest
     post webhooks_zendesk_path, params: payload, as: :json, headers: headers
 
     assert_response :ok
-
-    ENV["WEBHOOKS_TICKETS_SECRET"] = nil
   end
 
   # ========== Desk Validation Tests ==========

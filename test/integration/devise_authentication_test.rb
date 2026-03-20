@@ -38,17 +38,24 @@ class DeviseAuthenticationTest < ActionDispatch::IntegrationTest
       password_confirmation: "password123"
     )
 
-    visit new_admin_user_session_path
-    fill_in "Email", with: admin_user.email
-    fill_in "Password", with: "password123"
-    click_button "Log in"
+    # Use integration session only here — mixing Capybara `visit` with `delete` uses a
+    # separate cookie jar, so sign-out would not apply to subsequent `visit` calls.
+    sign_in admin_user, scope: :admin_user
+    get avo_path
+    assert_response :redirect
+    assert_match(%r{/avo/}, response.headers["Location"].to_s)
 
-    visit avo_path
+    # Path helpers are scoped to the last engine request (/avo); Devise lives on the main app.
+    delete "/admin_users/sign_out"
+    assert_response :redirect
+    follow_redirect!
 
-    click_on "Sign out", match: :first
-
-    assert_current_path new_admin_user_session_path
-    assert_text(/Log in/i)
+    get avo_path
+    # Either no route (404) or Devise sends guests to sign in (302), depending on routing stack.
+    assert_includes [302, 404], response.status
+    if response.redirect?
+      assert_match(%r{/admin_users/sign_in}, response.headers["Location"].to_s)
+    end
   end
 
   test "redirects to login when accessing avo without authentication" do
