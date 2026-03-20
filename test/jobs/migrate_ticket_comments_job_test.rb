@@ -109,4 +109,28 @@ class MigrateTicketCommentsJobTest < ActiveJob::TestCase
 
     extra_ticket.destroy
   end
+
+  test "re-enqueues failed tickets separately and still advances last_id" do
+    ZendeskTicketComment.stub(:upsert_all, ->(*) { raise ActiveRecord::StatementInvalid, "simulated DB error" }) do
+      assert_enqueued_with(job: MigrateTicketCommentsJob, kwargs: {retry_ids: [@ticket.id]}) do
+        MigrateTicketCommentsJob.perform_now
+      end
+    end
+  end
+
+  test "retry_ids mode re-attempts only specified tickets" do
+    # The failing ticket has comments still in raw_data after a simulated earlier failure.
+    assert_difference "ZendeskTicketComment.count", 2 do
+      MigrateTicketCommentsJob.perform_now(retry_ids: [@ticket.id])
+    end
+
+    @ticket.reload
+    assert_nil @ticket.raw_data["comments"]
+  end
+
+  test "retry_ids mode does not enqueue further jobs" do
+    assert_no_enqueued_jobs only: MigrateTicketCommentsJob do
+      MigrateTicketCommentsJob.perform_now(retry_ids: [@ticket.id])
+    end
+  end
 end
