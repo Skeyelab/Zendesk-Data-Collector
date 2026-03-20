@@ -1,4 +1,11 @@
 Rails.application.configure do
+  # Use Solid Queue in dev so Mission Control (/jobs) and `bin/jobs` see the same jobs as the web
+  # process. Active Job's :async adapter never writes to solid_queue_* tables, so the UI looked
+  # empty while workers polled the DB.
+  #
+  # macOS fork+getaddrinfo crashes: avoid default `bin/jobs start` (forking supervisor); use
+  # `bin/jobs start --mode=async` — see Procfile.local.
+  config.active_job.queue_adapter = :solid_queue
   # Settings specified here will take precedence over those in config/application.rb.
 
   # In the development environment your application's code is reloaded on

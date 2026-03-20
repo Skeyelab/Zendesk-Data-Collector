@@ -1,5 +1,5 @@
 # Base stage for shared dependencies
-FROM ruby:3.2.4-slim AS base
+FROM ruby:3.3.4-slim AS base
 
 # Install system dependencies
 RUN apt-get update -qq && \

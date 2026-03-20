@@ -97,8 +97,9 @@ class IncrementalTicketJob < ApplicationJob
           end
         end
 
-        # Enqueue comment and metrics fetch jobs only for updates (new tickets don't have these yet)
-        if ticket_id && result == :updated
+        # Enqueue comments for newly created and updated tickets.
+        # Metrics remain update-only in this pass.
+        if ticket_id && result != :error
           status = enriched_ticket["status"] || enriched_ticket[:status]
           closed = %w[closed solved].include?(status.to_s)
 
@@ -112,8 +113,8 @@ class IncrementalTicketJob < ApplicationJob
             FetchTicketCommentsJob.set(comment_opts).perform_later(ticket_id, desk.id, desk.domain)
           end
 
-          # Enqueue metrics job only when we did not apply sideloaded metrics
-          if desk.fetch_metrics && !sideloaded_metrics
+          # Enqueue metrics job only for updates when we did not apply sideloaded metrics
+          if result == :updated && desk.fetch_metrics && !sideloaded_metrics
             metrics_stagger_seconds = ZendeskConfig::METRICS_JOB_STAGGER_SECONDS
             metrics_delay_seconds = delay_seconds + (processed * metrics_stagger_seconds) % ZendeskConfig::STAGGER_CYCLE_MAX_SECONDS
             metrics_opts = {wait: metrics_delay_seconds.seconds}

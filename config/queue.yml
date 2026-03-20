@@ -5,7 +5,7 @@ default: &default
   workers:
     - queues: ["proxy", "solid_queue_recurring", "incremental", "default", "comments", "metrics", "comments_closed", "metrics_closed"]
       threads: <%= ENV.fetch("SOLID_QUEUE_THREADS", 1) %>
-      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      processes: <%= ENV.fetch("JOB_CONCURRENCY", ENV.fetch("SOLID_QUEUE_CONCURRENCY", 1)) %>
       polling_interval: 0.1
 
 development:
