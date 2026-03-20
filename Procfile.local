@@ -1,5 +1,4 @@
-# You can add environment variables which should be provided to any
-# spawned processes
-env:
-  SOLID_QUEUE_CONCURRENCY: 1
-  RAILS_LOG_TO_STDOUT: true
+# Foreman format: `name: command` (not YAML). Use: foreman start -f Procfile.local
+# Async Solid Queue supervisor avoids macOS fork+getaddrinfo issues; see development.rb.
+web: PORT=3000 bundle exec puma -t 5:5 -p 3000 -e ${RACK_ENV:-development}
+worker1: RAILS_LOG_TO_STDOUT=true bundle exec bin/jobs start --mode=async
