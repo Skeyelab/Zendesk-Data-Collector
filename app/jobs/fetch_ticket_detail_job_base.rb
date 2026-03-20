@@ -29,6 +29,10 @@
 #   Returns the default value when no data is found. Defaults to {}.
 #   Override to return [] for array responses.
 #
+# [+persist_when_empty?+] (optional)
+#   When true, calls +persist_data+ even when the response payload is empty
+#   (e.g. empty comments array). Defaults to false.
+#
 # [+log_received(ticket_id, data)+] (optional)
 #   Custom logging for received data. Default logs the count of items.
 #
@@ -129,6 +133,10 @@ class FetchTicketDetailJobBase < ApplicationJob
         persist_data(ticket, data)
         job_log(:info,
           "[#{job_name}] ✓ Successfully stored #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain})")
+      elsif persist_when_empty?(data)
+        persist_data(ticket, data)
+        job_log(:info,
+          "[#{job_name}] ✓ Cleared #{resource_name} for ticket #{ticket_id} (desk: #{desk.domain})")
       else
         job_log(:info, "[#{job_name}] No #{resource_name} found for ticket #{ticket_id} (desk: #{desk.domain})")
       end
@@ -185,6 +193,10 @@ class FetchTicketDetailJobBase < ApplicationJob
 
   def empty_value
     {}
+  end
+
+  def persist_when_empty?(_data)
+    false
   end
 
   def persist_data(_ticket, _data)
