@@ -59,7 +59,7 @@ Common fields are extracted to indexed columns for performance:
 - Assignment: `assignee_name`, `assignee_id`, `group_name`, `group_id`
 - Timestamps: `created_at`, `updated_at`, `assigned_at`, `solved_at`
 - Metrics: SLA metrics (first reply, first/full resolution times), wait times (agent, requester, on hold), counters (reopens, replies), business hours variants
-- Comments: Stored as array in `raw_data["comments"]`
+- Comments: Stored in the normalized `zendesk_ticket_comments` table
 - Complete data: `raw_data` JSONB column with full API response, including custom fields and raw metrics
 
 This hybrid approach provides:
@@ -81,15 +81,15 @@ The application uses four main jobs:
    - Fetches tickets from Zendesk Incremental Export API
    - Enriches tickets with sideloaded user data
    - Creates or updates tickets in PostgreSQL
-   - Queues FetchTicketCommentsJob and FetchTicketMetricsJob for each ticket with staggered delays
+   - Queues `FetchTicketCommentsJob` for new and updated tickets, and `FetchTicketMetricsJob` for updated tickets, with staggered delays
    - Updates desk's last sync timestamp
 
 3. **FetchTicketCommentsJob** (Priority 10 - lower priority, queues: `comments`, `comments_closed`)
    - Fetches comments for individual tickets from `/api/v2/tickets/{id}/comments.json`
-   - Only queued when updating existing tickets (not for new tickets)
+   - Queued for newly created and updated tickets when `fetch_comments` is enabled
    - Uses staggered delays to prevent API rate limiting (configurable via `COMMENT_JOB_STAGGER_SECONDS`)
    - Implements rate limit detection and backoff with retry logic
-   - Stores comments array in ticket's `raw_data["comments"]` JSONB column
+   - Stores normalized comment rows in `zendesk_ticket_comments`
    - Can be disabled per desk with `fetch_comments` flag
 
 4. **FetchTicketMetricsJob** (Priority 10 - lower priority, queues: `metrics`, `metrics_closed`)
@@ -273,7 +273,7 @@ Access the admin interface at `/avo` after logging in with your admin credential
 ### Features:
 - **Desks Management**: Add, edit, and activate Zendesk accounts
 - **Ticket Viewing**: Search and view synchronized ticket data
-- **Job Monitoring**: View job status at `/jobs` (Mission Control)
+- **Job Monitoring**: View job status at `/jobs` (Mission Control). In development, the app uses Solid Queue (same as production) so this UI reflects real jobs; run a worker via `foreman start -f Procfile.local` (`bin/jobs start --mode=async` avoids macOS fork issues).
 
 ### Initial Setup:
 1. Login at `/avo` with the admin credentials configured during deployment
@@ -292,7 +292,7 @@ Access the admin interface at `/avo` after logging in with your admin credential
 Each Zendesk account (Desk) can be configured with the following options via the Avo admin interface:
 
 - **Active**: Enable/disable syncing for this desk
-- **Fetch Comments**: When enabled, fetches comments for each ticket and stores in `raw_data["comments"]`
+- **Fetch Comments**: When enabled, fetches comments for each ticket and stores them in `zendesk_ticket_comments`
 - **Fetch Metrics**: When enabled, fetches metrics for each ticket and extracts to indexed columns
 
 ### Environment Variables

@@ -191,14 +191,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_120000) do
   end
 
   create_table "zendesk_ticket_comments", force: :cascade do |t|
-    t.bigint "zendesk_ticket_id", null: false
-    t.bigint "zendesk_comment_id", null: false
     t.bigint "author_id"
     t.text "body"
+    t.datetime "created_at", null: false
     t.text "plain_body"
     t.boolean "public", default: true
     t.jsonb "via"
-    t.datetime "created_at", null: false
+    t.bigint "zendesk_comment_id", null: false
+    t.bigint "zendesk_ticket_id", null: false
     t.index ["zendesk_ticket_id", "zendesk_comment_id"], name: "index_ztc_on_ticket_and_comment", unique: true
   end
 
@@ -262,11 +262,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_19_120000) do
     t.index ["zendesk_id", "domain"], name: "index_zendesk_tickets_on_zendesk_id_and_domain", unique: true
   end
 
-  add_foreign_key "zendesk_ticket_comments", "zendesk_tickets"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "zendesk_ticket_comments", "zendesk_tickets"
 end
