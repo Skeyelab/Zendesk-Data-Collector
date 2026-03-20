@@ -5,6 +5,17 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
   self.default_sort_column = :updated_at
   self.default_sort_direction = :desc
 
+  class << self
+    def authorization
+      ::Avo::ViewOnlyResourceAuthorization.new(Avo::Current.user, model_class, policy_class: authorization_policy)
+    end
+  end
+
+  def authorization(user: nil)
+    current_user = user || Avo::Current.user
+    ::Avo::ViewOnlyResourceAuthorization.new(current_user, record || model_class, policy_class: self.class.authorization_policy)
+  end
+
   self.search = {
     query: lambda {
       search_term = params[:q]
@@ -83,6 +94,12 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
     field :assigned_at, as: :date_time, readonly: true, sortable: true
     field :initially_assigned_at, as: :date_time, readonly: true, sortable: true
     field :solved_at, as: :date_time, readonly: true, sortable: true
+
+    field :zendesk_ticket_comments,
+      as: :has_many,
+      name: "Comments",
+      use_resource: Avo::Resources::ZendeskTicketCommentResource,
+      scope: -> { query.order(zendesk_comment_id: :asc) }
 
     # Time metrics
     field :first_reply_time_in_minutes, as: :number, readonly: true, sortable: true
