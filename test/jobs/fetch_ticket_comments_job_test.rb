@@ -193,6 +193,20 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     end
   end
 
+  test "should fall back to ticket created_at when comment created_at is nil" do
+    stub_comments_api(12_345, [
+      {id: 55, body: "No timestamp", plain_body: "No timestamp", author_id: 1}
+    ])
+
+    assert_difference "ZendeskTicketComment.count", 1 do
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
+
+    comment = ZendeskTicketComment.find_by(zendesk_comment_id: 55)
+    assert_not_nil comment.created_at
+    assert_in_delta @ticket.created_at.to_f, comment.created_at.to_f, 1.0
+  end
+
   test "should upsert on re-fetch (idempotent)" do
     comments_data = [{id: 1, body: "Original body", plain_body: "Original body", author_id: 1, created_at: "2024-01-01T10:00:00Z"}]
     stub_comments_api(12_345, comments_data)
