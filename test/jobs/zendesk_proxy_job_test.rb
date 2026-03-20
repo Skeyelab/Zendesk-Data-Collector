@@ -242,4 +242,45 @@ class ZendeskProxyJobTest < ActiveJob::TestCase
       ZendeskProxyJob.perform_now("support.example.com", "get", "invalid_resource", 123, nil)
     end
   end
+
+  # ========== 409 Conflict Handling Tests ==========
+
+  test "409 conflict on async POST user is retried and succeeds on second attempt" do
+    stub_request(:post, "https://support.example.com/api/v2/users.json")
+      .with(
+        basic_auth: ["user@example.com/token", "token"],
+        body: {user: {name: "Conflict User", email: "conflict@example.com"}}.to_json
+      )
+      .to_return(
+        {status: 409, body: {error: "Conflict"}.to_json, headers: {"Content-Type" => "application/json"}},
+        {status: 201, body: {user: {id: 5001, name: "Conflict User"}}.to_json, headers: {"Content-Type" => "application/json"}}
+      )
+
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "post", "users", nil, {"user" => {"name" => "Conflict User", "email" => "conflict@example.com"}})
+    end
+  end
+
+  test "409 conflict on async POST does not raise after max retries are exhausted" do
+    stub_request(:post, "https://support.example.com/api/v2/users.json")
+      .with(
+        basic_auth: ["user@example.com/token", "token"],
+        body: {user: {name: "Always Conflict", email: "always@example.com"}}.to_json
+      )
+      .to_return(status: 409, body: {error: "Conflict"}.to_json, headers: {"Content-Type" => "application/json"})
+
+    assert_nothing_raised do
+      ZendeskProxyJob.perform_now("support.example.com", "post", "users", nil, {"user" => {"name" => "Always Conflict", "email" => "always@example.com"}})
+    end
+  end
+
+  test "409 conflict on synchronous GET returns 409 status after max retries" do
+    stub_request(:get, "https://support.example.com/api/v2/users/5002.json")
+      .with(basic_auth: ["user@example.com/token", "token"])
+      .to_return(status: 409, body: {error: "Conflict"}.to_json, headers: {"Content-Type" => "application/json"})
+
+    result = ZendeskProxyJob.perform_now("support.example.com", "get", "users", 5002, nil)
+    assert_equal 409, result[0]
+    assert result[1].key?(:error_class)
+  end
 end
