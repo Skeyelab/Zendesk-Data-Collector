@@ -111,11 +111,21 @@ class MigrateTicketCommentsJobTest < ActiveJob::TestCase
   end
 
   test "re-enqueues failed tickets separately and still advances last_id" do
-    ZendeskTicketComment.stub(:upsert_all, ->(*) { raise ActiveRecord::StatementInvalid, "simulated DB error" }) do
-      assert_enqueued_with(job: MigrateTicketCommentsJob, kwargs: {retry_ids: [@ticket.id]}) do
-        MigrateTicketCommentsJob.perform_now
-      end
+    ZendeskTicketComment.define_singleton_method(:upsert_all) do |*, **|
+      raise ActiveRecord::StatementInvalid, "simulated DB error"
     end
+    assert_enqueued_with(
+      job: MigrateTicketCommentsJob,
+      args: lambda { |job_args|
+        h = job_args&.first
+        h = h.with_indifferent_access if h.is_a?(Hash)
+        h && h[:retry_ids] == [@ticket.id]
+      }
+    ) do
+      MigrateTicketCommentsJob.perform_now
+    end
+  ensure
+    ZendeskTicketComment.singleton_class.remove_method(:upsert_all)
   end
 
   test "retry_ids mode re-attempts only specified tickets" do
