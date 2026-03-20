@@ -53,7 +53,7 @@ class FetchTicketCommentsJob < FetchTicketDetailJobBase
       plain_body: comment["plain_body"],
       public: comment.fetch("public", true),
       via: comment["via"],
-      created_at: comment["created_at"]
+      created_at: comment["created_at"] || ticket.created_at
     }
   end
 end
