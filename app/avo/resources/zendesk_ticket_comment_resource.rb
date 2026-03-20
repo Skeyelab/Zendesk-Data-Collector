@@ -6,9 +6,17 @@ class Avo::Resources::ZendeskTicketCommentResource < Avo::BaseResource
   self.includes = []
   self.default_sort_column = :zendesk_comment_id
   self.default_sort_direction = :asc
-  self.can_create = false
-  self.can_edit = false
-  self.can_delete = false
+
+  class << self
+    def authorization
+      ::Avo::ViewOnlyResourceAuthorization.new(Avo::Current.user, model_class, policy_class: authorization_policy)
+    end
+  end
+
+  def authorization(user: nil)
+    current_user = user || Avo::Current.user
+    ::Avo::ViewOnlyResourceAuthorization.new(current_user, record || model_class, policy_class: self.class.authorization_policy)
+  end
 
   def fields
     field :id, as: :id

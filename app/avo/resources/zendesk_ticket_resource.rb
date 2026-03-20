@@ -5,6 +5,17 @@ class Avo::Resources::ZendeskTicketResource < Avo::BaseResource
   self.default_sort_column = :updated_at
   self.default_sort_direction = :desc
 
+  class << self
+    def authorization
+      ::Avo::ViewOnlyResourceAuthorization.new(Avo::Current.user, model_class, policy_class: authorization_policy)
+    end
+  end
+
+  def authorization(user: nil)
+    current_user = user || Avo::Current.user
+    ::Avo::ViewOnlyResourceAuthorization.new(current_user, record || model_class, policy_class: self.class.authorization_policy)
+  end
+
   self.search = {
     query: lambda {
       search_term = params[:q]
