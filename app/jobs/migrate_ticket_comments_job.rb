@@ -36,12 +36,11 @@ class MigrateTicketCommentsJob < ApplicationJob
 
   def migrate_ticket(ticket)
     comments = ticket.raw_data["comments"]
-    return if comments.blank?
-
-    rows = comments.filter_map { |c| map_comment(ticket, c) }
-
-    if rows.any?
-      ZendeskTicketComment.upsert_all(rows, unique_by: [:zendesk_ticket_id, :zendesk_comment_id])
+    if comments.present?
+      rows = comments.filter_map { |c| map_comment(ticket, c) }
+      if rows.any?
+        ZendeskTicketComment.upsert_all(rows, unique_by: [:zendesk_ticket_id, :zendesk_comment_id])
+      end
     end
 
     ticket.update_columns(raw_data: ticket.raw_data.except("comments"))

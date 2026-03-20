@@ -77,6 +77,23 @@ class MigrateTicketCommentsJobTest < ActiveJob::TestCase
     assert_not_nil ZendeskTicketComment.find_by(zendesk_comment_id: 20)
   end
 
+  test "strips empty comments array from raw_data without upserting" do
+    ticket_empty = ZendeskTicket.create!(
+      zendesk_id: 1004,
+      domain: "test.zendesk.com",
+      subject: "Empty comments key",
+      status: "open",
+      raw_data: {"id" => 1004, "comments" => []}
+    )
+
+    MigrateTicketCommentsJob.perform_now
+
+    ticket_empty.reload
+    assert_nil ticket_empty.raw_data["comments"]
+    assert_equal 1004, ticket_empty.raw_data["id"]
+    assert_equal 0, ZendeskTicketComment.where(zendesk_ticket_id: ticket_empty.id).count
+  end
+
   test "enqueues next batch when more tickets exist" do
     extra_ticket = ZendeskTicket.create!(
       zendesk_id: 1003,

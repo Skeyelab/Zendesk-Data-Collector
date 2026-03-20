@@ -124,12 +124,31 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     assert_equal 0, ZendeskTicketComment.where(zendesk_ticket_id: @ticket.id).count
   end
 
-  test "should handle empty comments response" do
+  test "should strip raw_data comments when API returns empty array" do
+    @ticket.update_columns(raw_data: @ticket.raw_data.merge("comments" => [{"id" => 1, "body" => "stale"}]))
     stub_comments_api(12_345, [])
 
     assert_no_difference "ZendeskTicketComment.count" do
       FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
     end
+
+    @ticket.reload
+    assert_nil @ticket.raw_data["comments"]
+  end
+
+  test "should upsert only comments with id and strip raw_data" do
+    stub_comments_api(12_345, [
+      {body: "bad", author_id: 1},
+      {id: 42, body: "good", plain_body: "good", author_id: 1, created_at: "2024-01-01T00:00:00Z"}
+    ])
+
+    assert_difference "ZendeskTicketComment.count", 1 do
+      FetchTicketCommentsJob.perform_now(12_345, @desk.id, "test.zendesk.com")
+    end
+
+    assert_not_nil ZendeskTicketComment.find_by(zendesk_comment_id: 42)
+    @ticket.reload
+    assert_nil @ticket.raw_data["comments"]
   end
 
   test "should handle rate limiting (429 error) with retry" do
