@@ -9,7 +9,7 @@ ruby "~> 3.3.4"
 
 # Rails 8
 gem "dotenv-rails", groups: %i[development test]
-gem "rails", "~> 8.0"
+gem "rails", "~> 8.1.2"
 
 # Database
 gem "pg", "~> 1.5"
