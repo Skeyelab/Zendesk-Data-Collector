@@ -62,6 +62,20 @@ class ZendeskProxyJob < ApplicationJob
         retry
       end
 
+      if conflict_error?(e)
+        if retry_count < MAX_RETRIES
+          retry_count += 1
+          wait_seconds = retry_count
+          Rails.logger.warn "[ZendeskProxyJob] Conflict (409) for #{method.upcase} #{path}, retrying in #{wait_seconds}s (retry #{retry_count}/#{MAX_RETRIES})"
+          sleep(wait_seconds) unless Rails.env.test?
+          retry
+        else
+          Rails.logger.warn "[ZendeskProxyJob] Conflict (409) for #{method.upcase} #{path} after #{MAX_RETRIES} retries, giving up"
+          return [409, {error: e.message, error_class: e.class.name}] if synchronous_method?(method)
+          return
+        end
+      end
+
       # RecordInvalid (422/413) is a validation response (e.g. duplicate email), not a server error
       if duplicate_value_validation_error?(e)
         validation_msg = validation_error_message(e)
@@ -93,6 +107,13 @@ class ZendeskProxyJob < ApplicationJob
   # RecordInvalid covers 422/413 validation failures (e.g. duplicate email). Treat as expected validation response.
   def duplicate_value_validation_error?(error)
     error.class.name.include?("RecordInvalid")
+  end
+
+  # Detect 409 Conflict errors (e.g. concurrent user-create collisions on Zendesk).
+  def conflict_error?(error)
+    return false unless error
+
+    error.message.include?("status 409")
   end
 
   def validation_error_message(error)
