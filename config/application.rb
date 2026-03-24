@@ -16,6 +16,9 @@ module ZDDatacollector
     # Enable Rack::Attack middleware
     config.middleware.use Rack::Attack
 
+    # Disable image variant processing (app does not use image variants)
+    config.active_storage.variant_processor = :disabled
+
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.
