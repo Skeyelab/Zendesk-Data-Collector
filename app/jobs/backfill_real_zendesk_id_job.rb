@@ -17,7 +17,7 @@ class BackfillRealZendeskIdJob < ApplicationJob
   def perform(batch_size: BATCH_SIZE, last_id: 0)
     ids = ZendeskTicketComment
       .where(real_zendesk_id: nil)
-      .where("zendesk_ticket_comments.id > ?", last_id)
+      .where("id > ?", last_id)
       .order(:id)
       .limit(batch_size)
       .pluck(:id)
