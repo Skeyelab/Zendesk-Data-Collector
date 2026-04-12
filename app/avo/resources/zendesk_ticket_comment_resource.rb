@@ -22,6 +22,7 @@ class Avo::Resources::ZendeskTicketCommentResource < Avo::BaseResource
     field :id, as: :id
     field :zendesk_comment_id, as: :number, readonly: true, sortable: true
     field :zendesk_ticket_id, as: :number, readonly: true, sortable: true
+    field :real_zendesk_id, as: :number, readonly: true, sortable: true
     field :author_id, as: :number, readonly: true
     field :public, as: :boolean, readonly: true, sortable: true
 

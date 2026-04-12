@@ -74,6 +74,7 @@ class MigrateTicketCommentsJob < ApplicationJob
 
     {
       zendesk_ticket_id: ticket.id,
+      real_zendesk_id: ticket.zendesk_id,
       zendesk_comment_id: comment["id"],
       author_id: comment["author_id"],
       body: comment["body"],
