@@ -33,6 +33,7 @@ class MigrateTicketCommentsJobTest < ActiveJob::TestCase
     first = ZendeskTicketComment.find_by(zendesk_comment_id: 10)
     assert_not_nil first
     assert_equal @ticket.id, first.zendesk_ticket_id
+    assert_equal @ticket.zendesk_id, first.real_zendesk_id
     assert_equal "First comment", first.body
     assert_equal 55, first.author_id
     assert_equal true, first.public
