@@ -69,10 +69,12 @@ class FetchTicketCommentsJobTest < ActiveJob::TestCase
     assert_not_nil first
     assert_equal "This is the first comment", first.body
     assert_equal true, first.public
+    assert_equal @ticket.zendesk_id, first.real_zendesk_id
 
     assert_not_nil second
     assert_equal "This is the second comment", second.body
     assert_equal false, second.public
+    assert_equal @ticket.zendesk_id, second.real_zendesk_id
   end
 
   test "should strip comments from raw_data after persisting" do
