@@ -34,6 +34,10 @@ class BackfillRealZendeskIdJob < ApplicationJob
 
     job_log(:info, "[BackfillRealZendeskIdJob] Updated #{updated} row(s) (last id: #{ids.last})")
 
-    self.class.perform_later(batch_size: batch_size, last_id: ids.last)
+    if ZendeskTicketComment.where(real_zendesk_id: nil).where("id > ?", ids.last).exists?
+      self.class.perform_later(batch_size: batch_size, last_id: ids.last)
+    else
+      job_log(:info, "[BackfillRealZendeskIdJob] Backfill complete.")
+    end
   end
 end
