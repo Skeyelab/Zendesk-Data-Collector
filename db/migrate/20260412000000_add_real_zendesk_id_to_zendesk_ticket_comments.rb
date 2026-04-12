@@ -20,7 +20,7 @@ class AddRealZendeskIdToZendeskTicketComments < ActiveRecord::Migration[8.1]
   end
 
   def down
-    remove_index :zendesk_ticket_comments, name: :index_ztc_on_real_zendesk_id
+    remove_index :zendesk_ticket_comments, name: :index_ztc_on_real_zendesk_id, if_exists: true
     remove_column :zendesk_ticket_comments, :real_zendesk_id
   end
 end
