@@ -4,21 +4,26 @@ class DashboardController < ApplicationController
   def index
     @total_tickets = ZendeskTicket.count
     @active_desks = Desk.where(active: true).count
-    # Try multiple resolution time fields, fallback to calculating from timestamps
+
+    # Open/pending workload
+    @open_tickets = ZendeskTicket.where(status: %w[new open pending]).count
+    @solved_last_7_days = ZendeskTicket.where(status: %w[solved closed])
+      .where(solved_at: 7.days.ago..)
+      .count
+    @solved_last_30_days = ZendeskTicket.where(status: %w[solved closed])
+      .where(solved_at: 30.days.ago..)
+      .count
+
+    # Average resolution time
     avg_resolution = ZendeskTicket
       .where.not(first_resolution_time_in_minutes: nil)
       .average(:first_resolution_time_in_minutes)
 
-    if avg_resolution.nil?
-      # Fallback to full_resolution_time_in_minutes
-      avg_resolution = ZendeskTicket
-        .where.not(full_resolution_time_in_minutes: nil)
-        .average(:full_resolution_time_in_minutes)
-    end
+    avg_resolution ||= ZendeskTicket
+      .where.not(full_resolution_time_in_minutes: nil)
+      .average(:full_resolution_time_in_minutes)
 
     if avg_resolution.nil?
-      # Calculate from solved/closed tickets using updated_at as proxy for resolution time
-      # Note: This is approximate since incremental API doesn't include metric fields
       solved_tickets = ZendeskTicket
         .where(status: %w[solved closed])
         .where.not(created_at: nil)
@@ -26,11 +31,8 @@ class DashboardController < ApplicationController
 
       if solved_tickets.any?
         total_minutes = solved_tickets.sum do |ticket|
-          # Use updated_at as proxy for when ticket was resolved
-          # This is approximate but better than nothing
           resolution_time = ticket.updated_at
           created_time = ticket.created_at
-
           if resolution_time && created_time && resolution_time > created_time
             ((resolution_time - created_time) / 60).round
           else
@@ -45,14 +47,9 @@ class DashboardController < ApplicationController
       total_minutes = avg_resolution.round
       hours = total_minutes / 60
       minutes = total_minutes % 60
-
       @avg_resolution_hours = hours
       @avg_resolution_minutes = minutes
-      @avg_resolution_time_formatted = if hours > 0
-        "#{hours}h #{minutes}m"
-      else
-        "#{minutes}m"
-      end
+      @avg_resolution_time_formatted = hours > 0 ? "#{hours}h #{minutes}m" : "#{minutes}m"
     else
       @avg_resolution_hours = nil
       @avg_resolution_minutes = nil
@@ -60,6 +57,18 @@ class DashboardController < ApplicationController
     end
 
     @has_resolution_data = !@avg_resolution_time_formatted.nil?
+
+    # Average first reply time
+    avg_first_reply = ZendeskTicket
+      .where.not(first_reply_time_in_minutes: nil)
+      .average(:first_reply_time_in_minutes)
+
+    if avg_first_reply
+      total_minutes = avg_first_reply.round
+      hours = total_minutes / 60
+      minutes = total_minutes % 60
+      @avg_first_reply_formatted = hours > 0 ? "#{hours}h #{minutes}m" : "#{minutes}m"
+    end
 
     @tickets_by_status = ZendeskTicket
       .where.not(status: nil)
@@ -71,6 +80,30 @@ class DashboardController < ApplicationController
       .group(:priority)
       .count
 
+    @tickets_by_channel = ZendeskTicket
+      .where.not(via: [nil, ""])
+      .group(:via)
+      .count
+
+    @tickets_by_group = ZendeskTicket
+      .where.not(group_name: [nil, ""])
+      .group(:group_name)
+      .count
+
+    @top_assignees = ZendeskTicket
+      .where.not(assignee_name: [nil, ""])
+      .group(:assignee_name)
+      .count
+      .sort_by { |_name, count| -count }
+      .first(10)
+      .to_h
+
+    @satisfaction_scores = ZendeskTicket
+      .where.not(satisfaction_score: [nil, ""])
+      .where.not(satisfaction_score: "unoffered")
+      .group(:satisfaction_score)
+      .count
+
     # Tickets over time - group by date and format as date strings
     tickets_by_date = ZendeskTicket
       .where.not(created_at: nil)
@@ -78,7 +111,6 @@ class DashboardController < ApplicationController
       .order("DATE(created_at) ASC")
       .count
 
-    # Format dates as YYYY-MM-DD strings for Chartkick
     @tickets_over_time = tickets_by_date.transform_keys { |date| date.strftime("%Y-%m-%d") }
   end
 end
