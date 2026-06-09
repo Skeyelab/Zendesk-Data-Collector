@@ -15,7 +15,7 @@ gem "rails", "~> 8.1.2"
 gem "pg", "~> 1.5"
 
 # Server
-gem "puma", "~> 6.0"
+gem "puma", "~> 7.2"
 
 # Asset pipeline (required for Mission Control - Jobs UI)
 gem "propshaft"
